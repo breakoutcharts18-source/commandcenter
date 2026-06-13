@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>BREAKOUTCHARTS — NSE Stock Screener</title>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
 :root{--bg:#0d0f14;--surface:#13161e;--border:#1e2330;--border2:#252b3b;--text:#c8d0e0;--muted:#5a6480;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--cyan:#06b6d4;--purple:#a855f7;--font:'Inter','Segoe UI',system-ui,sans-serif;--mono:'JetBrains Mono','Fira Code',monospace;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -62,7 +63,7 @@ select option{background:var(--surface);}
 .stat-card .val{font-size:20px;font-weight:700;font-family:var(--mono);color:#fff;line-height:1;}
 .stat-card .lbl{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
 
-/* LAYOUT UPDATED TO HIDE PARAMETERS FROM PUBLIC UI */
+/* HIDING PARAMETERS FROM PUBLIC UI */
 .layout{display:block;}
 .cond-panel{display:none;}
 
@@ -102,9 +103,9 @@ td{padding:8px 10px;font-family:var(--mono);font-size:11px;white-space:nowrap; v
 .sector-tag{font-size:8px;padding:1px 5px;border-radius:2px;font-weight:600;background:var(--border2);color:var(--muted);}
 
 /* Interactive Chart Row */
-.inline-chart-row { background: rgba(0, 0, 0, 0.2); }
+.inline-chart-row { background: rgba(0, 0, 0, 0.15); }
 .inline-chart-row td { padding: 12px; border-bottom: 1px solid var(--border); }
-.chart-container { width: 100%; height: 420px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border2); }
+.chart-container { width: 100%; height: 380px; background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; position: relative; }
 
 @media(max-width:1100px){.stat-row{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:600px){.stat-row{grid-template-columns:1fr 1fr;}.main{padding:10px;}header{padding:10px 14px;}}
@@ -142,7 +143,7 @@ td{padding:8px 10px;font-family:var(--mono);font-size:11px;white-space:nowrap; v
         <label>Sector Filter</label>
         <select id="sectorFilter" onchange="updateCount()" style="width:160px;">
           <option value="all">All Sectors</option>
-          </select>
+        </select>
       </div>
       <div class="ctrl-group">
         <label>Data Period</label>
@@ -224,7 +225,7 @@ td{padding:8px 10px;font-family:var(--mono);font-size:11px;white-space:nowrap; v
           </select>
           <select id="sectorResultFilter" onchange="applyFilter()" style="width:auto;padding:4px 8px;font-size:10px;">
             <option value="all">All Sectors</option>
-            </select>
+          </select>
           <button class="btn-sm" onclick="exportCSV()">↓ Export</button>
           <button class="btn-sm" onclick="clearAll()">✕ Clear</button>
         </div>
@@ -577,7 +578,7 @@ function renderTable(data){
     rowNum++;
     const sigClass={BUY:'pill-buy',WATCH:'pill-watch',FAIL:'pill-fail'}[r.signal]||'pill-fail';
     
-    // Inject the chart button ONLY for BUY signals
+    // Inject the native chart button ONLY for BUY signals
     let chartAction = '';
     if (r.signal === 'BUY') {
       chartAction = `<button class="btn-sm" style="margin-left:6px; padding:2px 5px; font-size:10px; color:var(--accent); border-color:rgba(59,130,246,0.3); background:transparent;" onclick="toggleChartRow('${r.sym}', this)" title="View Chart">📈</button>`;
@@ -652,13 +653,13 @@ function clearAll(){
 }
 
 // ═══════════════════════════════════════════
-// INLINE TRADINGVIEW CHART TOGGLE
+// 100% FREE NATIVE CANDLESTICK CHART LOGIC
 // ═══════════════════════════════════════════
-function toggleChartRow(sym, btn) {
+async function toggleChartRow(sym, btn) {
   const currentRow = btn.closest('tr');
   const nextRow = currentRow.nextElementSibling;
 
-  // If the chart row is already open, remove it
+  // If chart is already open, close it
   if (nextRow && nextRow.classList.contains('inline-chart-row')) {
     nextRow.remove();
     btn.textContent = '📈';
@@ -666,27 +667,82 @@ function toggleChartRow(sym, btn) {
     return;
   }
 
-  // Create an expandable row for the TradingView widget
+  // Create an expandable container row
   const chartRow = document.createElement('tr');
   chartRow.className = 'inline-chart-row';
   chartRow.innerHTML = `
-    <td colspan="13">
-      <div class="chart-container">
-        <iframe 
-          src="https://s.tradingview.com/widgetembed/?symbol=NSE%3A${sym}&interval=D&theme=dark&style=1&timezone=Asia%2FKolkata" 
-          width="100%" 
-          height="100%" 
-          frameborder="0" 
-          allowfullscreen>
-        </iframe>
+    <td colspan="13" style="padding: 12px; background: rgba(0,0,0,0.15);">
+      <div id="chart-holder-${sym}" class="chart-container">
+        <div id="chart-loader-${sym}" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--muted); font-family: var(--mono); font-size: 11px;">
+          ⏳ Fetching historical candles...
+        </div>
+        <div id="local-chart-${sym}" style="width: 100%; height: 100%;"></div>
       </div>
     </td>
   `;
-
-  // Insert exactly below the clicked stock and swap icon
   currentRow.parentNode.insertBefore(chartRow, currentRow.nextSibling);
   btn.textContent = '✕';
   btn.style.color = 'var(--red)';
+
+  try {
+    // Fetch historical data rows locally
+    const days = +document.getElementById('period').value;
+    const dataRes = await fetchStock(sym, days);
+    if (!dataRes || !dataRes.rows.length) throw new Error("No data");
+
+    // Remove loading placeholder
+    const loader = document.getElementById(`chart-loader-${sym}`);
+    if(loader) loader.remove();
+
+    // Map raw data into ApexCharts candlestick format
+    const seriesData = dataRes.rows.map((row, idx) => ({
+      x: idx + 1,
+      y: [row.o, row.h, row.l, row.c]
+    }));
+
+    // Configure clean dark-themed candlestick options
+    const options = {
+      series: [{ data: seriesData }],
+      chart: {
+        type: 'candlestick',
+        height: 360,
+        background: 'transparent',
+        toolbar: { show: true },
+        animations: { enabled: false }
+      },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'var(--border)' },
+      xaxis: {
+        labels: { show: false }, // Hide index numbers
+        axisBorder: { color: 'var(--border2)' },
+        axisTicks: { show: false },
+        tooltip: { enabled: false }
+      },
+      yaxis: {
+        forceNiceScale: true,
+        labels: {
+          style: { colors: 'var(--muted)', fontFamily: 'var(--mono)' },
+          formatter: (val) => "₹" + val.toFixed(1)
+        }
+      },
+      plotOptions: {
+        candlestick: {
+          colors: { upward: '#22c55e', downward: '#ef4444' },
+          wick: { useFillColor: true }
+        }
+      }
+    };
+
+    // Render the chart
+    const chart = new ApexCharts(document.querySelector(`#local-chart-${sym}`), options);
+    chart.render();
+
+  } catch (err) {
+    document.getElementById(`chart-holder-${sym}`).innerHTML = `
+      <div style="text-align: center; padding-top: 160px; color: var(--red); font-family: var(--mono); font-size: 11px;">
+        ❌ Data fetch failed for chart render.
+      </div>`;
+  }
 }
 </script>
 </body>
