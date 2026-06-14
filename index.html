@@ -169,8 +169,7 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
   <div class="filters-bar">
     <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search by company name, symbol, or theme tag..." oninput="filt(this.value)"/></div>
     <select class="si-select" id="sort-select" onchange="applyScreenerSort(this.value)">
-      <option value="default">🗂️ Sort: Original Order</option>
-      <option value="gainers">📈 Sort: Top Gainers (By Section)</option>
+      <option value="gainers" selected>📈 Sort: Top Gainers (By Section)</option>
       <option value="losers">📉 Sort: Top Losers (By Section)</option>
       <option value="alpha">🔡 Sort: Alphabetical (A-Z)</option>
     </select>
@@ -233,7 +232,7 @@ SECTORS.forEach(sec => {
 // ── STATE VARIABLES ──
 const $ = id => document.getElementById(id);
 let pg = 'p1';
-let currentSort = 'sector'; 
+let currentSort = 'gainers'; // Default momentum tracking
 let cSym = ''; 
 let apexChartInstance = null;
 let smaVisible = false;
@@ -314,7 +313,7 @@ async function fetchMarketDataBatch() {
     }
 
     renderHeatmap();
-    if(pg === 'p2') { currentSort === 'sector' ? buildAcc() : applyScreenerSort(currentSort); }
+    if(pg === 'p2') buildAcc();
     if(pg === 'p_watch') renderWatchlist();
   } catch(e) {
     console.error("Data Sync Failed", e);
@@ -368,7 +367,7 @@ function renderHeatmap() {
 }
 
 function focusSectorInScreener(sectorId) {
-    sp('p2'); applyScreenerSort('default');
+    sp('p2'); applyScreenerSort('gainers');
     if(!openAcc.has(sectorId)) togAcc(sectorId);
     setTimeout(() => { const row = $('acc-' + sectorId); if(row) row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
 }
@@ -391,7 +390,6 @@ function buildCoCard(c) {
   const cStr = d.price ? (d.pct>=0?'+':'')+d.pct.toFixed(2)+'%' : '—';
   const cCol = d.pct>=0 ? 'var(--green)' : 'var(--red)';
   
-  // Attach metadata securely for Context-Aware Navigation
   const dataName = c.name.replace(/"/g, '&quot;');
   const escapeClickName = c.name.replace(/'/g,"\\'");
   
@@ -492,8 +490,6 @@ function oc(sym, name) {
   if (smaVisible && $('btn-sma')) $('btn-sma').classList.add('active');
   else if ($('btn-sma')) $('btn-sma').classList.remove('active');
   
-  // -- CONTEXT-AWARE NAVIGATION LOGIC --
-  // Grab all visible stock cards currently rendered on the screen
   const visibleCards = Array.from(document.querySelectorAll('.page.active .cco')).filter(c => c.style.display !== 'none');
   window.currentNavList = visibleCards.map(c => ({ sym: c.dataset.sym, name: c.dataset.name }));
   window.currentNavIndex = window.currentNavList.findIndex(item => item.sym === sym);
@@ -655,7 +651,7 @@ function sp(id){
   document.querySelectorAll('.n-tab').forEach(t=>t.classList.toggle('active',t.dataset.p===id));
   
   if(id==='p1') renderHeatmap();
-  if(id==='p2') { currentSort === 'sector' ? buildAcc() : applyScreenerSort(currentSort); }
+  if(id==='p2') buildAcc(); 
   if(id==='p_watch') renderWatchlist();
 }
 
