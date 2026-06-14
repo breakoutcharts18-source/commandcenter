@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>ATM Terminal — Institutional Equity Workspace</title>
+<title>Breakouts Chart Terminal — Institutional Workspace</title>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
 /* ── BASE VARIABLES & RESET (Light/Dark Engine) ── */
@@ -171,8 +171,8 @@ body.light-theme .txt-flat { color: #ffffff; }
 
 <nav>
   <div class="n-brand">
-    <div class="n-logo">ATM</div>
-    <div><div class="n-title">Equity Terminal</div><div class="n-sub" id="nsub">Loading…</div></div>
+    <div class="n-logo">BCT</div>
+    <div><div class="n-title">Breakouts Chart Terminal</div><div class="n-sub" id="nsub">Loading…</div></div>
   </div>
   <div class="n-tabs">
     <button class="n-tab active" data-p="p1" onclick="sp('p1')">🔥 Sector Heatmap</button>
@@ -192,7 +192,7 @@ body.light-theme .txt-flat { color: #ffffff; }
 </div>
 
 <div class="page" id="p2">
-  <div class="status"><span>Live pricing infrastructure via Yahoo Finance batch architecture · 35 sectors · 300+ companies</span></div>
+  <div class="status"><span>Live institutional pricing infrastructure · 35 sectors · 317 companies</span></div>
   
   <div class="filters-bar">
     <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search by company name, symbol, or theme tag..." oninput="filt(this.value)"/></div>
@@ -273,7 +273,7 @@ window.currentNavIndex = -1;
 const PROXY = 'https://quiet-salad-da44.breakoutcharts18.workers.dev/?url='; 
 
 // Theme Initialization
-let currentTheme = localStorage.getItem('atm_theme') || 'dark';
+let currentTheme = localStorage.getItem('bct_theme') || 'dark';
 if (currentTheme === 'light') {
     document.body.classList.add('light-theme');
 }
@@ -281,7 +281,7 @@ if (currentTheme === 'light') {
 // Watchlist Processing
 let watchlist = new Set();
 try {
-    const stored = localStorage.getItem('atm_wl');
+    const stored = localStorage.getItem('bct_wl');
     if(stored) watchlist = new Set(JSON.parse(stored));
 } catch(e) {
     console.warn("Local storage disabled.");
@@ -295,10 +295,9 @@ function updateWlCount() {
 function toggleTheme() {
     document.body.classList.toggle('light-theme');
     currentTheme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
-    try { localStorage.setItem('atm_theme', currentTheme); } catch(e){}
+    try { localStorage.setItem('bct_theme', currentTheme); } catch(e){}
     $('theme-toggle').textContent = currentTheme === 'light' ? '🌙' : '☀️';
     
-    // Dynamically update the active open-source chart if the modal is open
     if(apexChartInstance && cSym) {
         const isLight = currentTheme === 'light';
         apexChartInstance.updateOptions({
@@ -434,7 +433,7 @@ function focusSectorInScreener(sectorId) {
 function tgs(e, sym) {
   e.stopPropagation();
   if(watchlist.has(sym)) watchlist.delete(sym); else watchlist.add(sym);
-  try { localStorage.setItem('atm_wl', JSON.stringify([...watchlist])); } catch(err) {}
+  try { localStorage.setItem('bct_wl', JSON.stringify([...watchlist])); } catch(err) {}
   updateWlCount();
   e.target.classList.toggle('starred', watchlist.has(sym));
   e.target.textContent = watchlist.has(sym) ? '★' : '☆';
