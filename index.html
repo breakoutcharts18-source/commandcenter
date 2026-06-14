@@ -181,6 +181,7 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
   </div>
 </nav>
 
+<!-- PAGE 1: SECTOR OVERVIEW -->
 <div class="page active" id="p1">
   <div class="pulse" id="pulse" style="display:none">
     <div><div class="pulse-label">Market Pulse</div><div class="pulse-val" id="psent"></div></div>
@@ -207,12 +208,14 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
   <div class="empty" id="emp1" style="display:none"><div class="ei">📈</div><div>Click Refresh to load NSE data</div></div>
 </div>
 
+<!-- PAGE: SCANNER -->
 <div class="page" id="p_scan">
   <div class="status"><span>Select thematic tags to isolate setups showing strength across different sectors.</span></div>
   <div class="tags-container" id="scan-tags"></div>
   <div class="cgrid" id="scan-grid"></div>
 </div>
 
+<!-- PAGE 2: FULL LIST -->
 <div class="page" id="p2">
   <div class="status"><span class="sdot"></span><span>Live prices via Yahoo Finance · 35 sectors · 300+ companies</span></div>
   <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search sector or company… e.g. Paint, Defence, HDFC, Hospital" oninput="filt(this.value)"/></div>
@@ -220,12 +223,14 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
   <div class="empty" id="emp2" style="display:none"><div class="ei">🏢</div><div>No results found</div></div>
 </div>
 
+<!-- PAGE: WATCHLIST -->
 <div class="page" id="p_watch">
   <div class="status"><span>Your highest-conviction setups. Data persists locally.</span></div>
   <div class="cgrid" id="watch-grid"></div>
   <div class="empty" id="emp_watch" style="display:none"><div class="ei">⭐</div><div>Your watchlist is empty.<br><br>Click the star icon on any stock card to add it here.</div></div>
 </div>
 
+<!-- CHART MODAL -->
 <div id="cmodal" onclick="cmc(event)">
   <div id="cbox">
     <div id="chdr">
@@ -247,7 +252,7 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
     </div>
     <div id="cchartc">
       <div id="lwc"></div>
-      <div id="cload"><div class="cspn"></div><span>Loading advanced chart…</span></div>
+      <div id="cload"></div>
     </div>
   </div>
 </div>
@@ -267,7 +272,6 @@ SECTORS.forEach(sec => {
     if(sec.name.includes("Auto")) c.tags.push("#Auto");
     if(sec.name.includes("Pharma") || sec.name.includes("Hospital") || sec.name.includes("Diag")) c.tags.push("#Healthcare");
     
-    // Inject maximum bifurcation via industry tags
     if(sec.industries && sec.industries.length > 0) {
       c.tags.push("#" + sec.industries[Math.floor(Math.random() * Math.min(2, sec.industries.length))].replace(/\s+/g, ''));
     }
@@ -318,7 +322,7 @@ async function yq(sym){
   }catch{return null;}
 }
 
-// ── P1 LOAD (Original Dashboard Logic) ──
+// ── P1 LOAD ──
 async function loadP1(){
   setLoad(true); serr('e1',''); p1d=[];
   const res=[];
@@ -474,7 +478,7 @@ function renderWatchlist() {
   $('emp_watch').style.display = comps.length > 0 ? 'none' : 'block';
 }
 
-// ── P2 ACCORDION (Original Page 2) ──
+// ── P2 ACCORDION ──
 function buildAcc(){
   $('accs').innerHTML=SECTORS.map(sec=>`
     <div class="acc" id="acc-${sec.id}">
@@ -519,10 +523,8 @@ async function loadPrices(sid){
     const k=c.sym.replace(/[^a-zA-Z0-9]/g,'_');
     const d=pcache[c.sym]||await yq(c.sym);
     if(d){pcache[c.sym]=d;}
-    
-    // Update elements across all tabs using the unique suffix
     ['sl-'].forEach(prefix => {
-        const le=$(prefix+k), ge=$('sg-'+k); // We use sg- for changes universally in this version
+        const le=$(prefix+k), ge=$('sg-'+k);
         if(le&&d){
           le.textContent='₹'+d.price.toLocaleString('en-IN',{minimumFractionDigits:2});
           ge.textContent=(d.pct>=0?'+':'')+d.pct.toFixed(2)+'%';
@@ -532,7 +534,6 @@ async function loadPrices(sid){
   }));
 }
 
-// ── SEARCH ──
 function filt(q){
   const t=q.trim().toLowerCase(); let any=false;
   SECTORS.forEach(sec=>{
@@ -552,7 +553,7 @@ function filt(q){
   $('emp2').style.display=any?'none':'block';
 }
 
-// ── ADVANCED CHART MODAL ──
+// ── FORTIFIED ADVANCED CHART MODAL ──
 function oc(sym,name){
   cSym=sym; cRange='1d';
   $('ccname').textContent=name; $('ccsym').textContent=sym;
@@ -561,8 +562,9 @@ function oc(sym,name){
   if(smaVisible) $('btn-sma').classList.add('active');
   
   if(!lwChart){
+    // BUG FIX: autoSize: true prevents 0px width rendering bugs in hidden modals
     lwChart=LightweightCharts.createChart($('lwc'),{
-      width:$('lwc').offsetWidth,height:380,
+      autoSize: true, 
       layout:{background:{color:'#0d0d1e'},textColor:'#888'},
       grid:{vertLines:{color:'#141428'},horzLines:{color:'#141428'}},
       rightPriceScale:{borderColor:'#1a1a2e'},
@@ -585,24 +587,48 @@ function tsma(btn) {
 }
 
 async function loadChart(sym,range){
-  $('cload').style.display='flex'; cSeries.setData([]); vSeries.setData([]); smaSeries.setData([]);
-  const im={'1d':'5m','5d':'15m','1mo':'1d','3mo':'1d','6mo':'1wk','1y':'1wk'};
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${im[range]||'5m'}&range=${range}`;
+  $('cload').style.display='flex'; 
+  $('cload').innerHTML = `<div class="cspn"></div><span style="margin-top:10px;">Loading advanced chart…</span>`;
+  cSeries.setData([]); vSeries.setData([]); smaSeries.setData([]);
+  
+  // BUG FIX: If range is 1d and it is a weekend, YF returns empty. Force fetch 5 days to guarantee data visibility.
+  const queryRange = (range === '1d') ? '5d' : range; 
+  const im={'1d':'15m','5d':'15m','1mo':'1d','3mo':'1d','6mo':'1wk','1y':'1wk'};
+  const interval = im[range]||'15m';
+  
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${queryRange}`;
+  
   try{
     const r=await fetch(PROXY+encodeURIComponent(url));
+    if(!r.ok) throw new Error('Data fetch blocked or failed');
     const j=await r.json();
-    const res=j?.chart?.result?.[0]; if(!res)throw new Error('No data');
+    const res=j?.chart?.result?.[0]; if(!res)throw new Error('No data returned from Exchange');
     const ts=res.timestamp||[],q=res.indicators?.quote?.[0]||{},m=res.meta;
     
     const candles=[], volumes=[];
+    let lastTime = 0;
+    
     for(let i=0; i<ts.length; i++) {
-      if(q.open[i] && q.high[i] && q.low[i] && q.close[i]) {
-        candles.push({time:ts[i], open:q.open[i], high:q.high[i], low:q.low[i], close:q.close[i]});
-        volumes.push({time:ts[i], value:q.volume[i]||0, color: q.close[i]>=q.open[i]?'rgba(74,222,128,0.3)':'rgba(248,113,113,0.3)'});
+      const t = ts[i];
+      // BUG FIX: Strictly filter out duplicate timestamps which crash the chart silently
+      if(t <= lastTime) continue; 
+      lastTime = t;
+      
+      if(q.open[i] != null && q.high[i] != null && q.low[i] != null && q.close[i] != null) {
+        // BUG FIX: LWC strictly requires Object format for daily/weekly, and UNIX for intraday
+        let cTime = t;
+        if(interval === '1d' || interval === '1wk') {
+           const d = new Date(t * 1000);
+           cTime = { year: d.getFullYear(), month: d.getMonth()+1, day: d.getDate() };
+        }
+        
+        candles.push({time: cTime, open:q.open[i], high:q.high[i], low:q.low[i], close:q.close[i]});
+        volumes.push({time: cTime, value:q.volume[i]||0, color: q.close[i]>=q.open[i]?'rgba(74,222,128,0.3)':'rgba(248,113,113,0.3)'});
       }
     }
     
-    // Calculate 20 SMA
+    if(candles.length === 0) throw new Error('Market Closed / No recent data available');
+
     if(candles.length >= 20) {
       const smaData = [];
       for(let i=19; i<candles.length; i++) {
@@ -612,14 +638,19 @@ async function loadChart(sym,range){
       smaSeries.setData(smaData);
     }
 
-    cSeries.setData(candles); vSeries.setData(volumes); lwChart.timeScale().fitContent();
+    cSeries.setData(candles); 
+    vSeries.setData(volumes); 
+    lwChart.timeScale().fitContent();
     
     const price=m.regularMarketPrice,prev=m.chartPreviousClose||price,pct=((price-prev)/prev)*100;
     $('cltp_m').textContent='₹'+price.toLocaleString('en-IN',{minimumFractionDigits:2});
     $('cchg_m').textContent=(pct>=0?'+':'')+pct.toFixed(2)+'% '+(pct>=0?'▲':'▼');
     $('cchg_m').style.color=pct>=0?'var(--green)':'var(--red)';
+    
     $('cload').style.display='none'; 
-  }catch{$('cload').innerHTML='<span style="color:var(--red)">⚠ Could not load chart for '+sym+'</span>';}
+  }catch(err){
+    $('cload').innerHTML=`<div style="background:#1a0202;border:1px solid #dc2626;padding:12px;border-radius:8px;color:#f87171;text-align:center;">⚠ Chart Error:<br>${err.message}</div>`;
+  }
 }
 
 function cr(r,btn){cRange=r;document.querySelectorAll('.rb:not(#btn-sma)').forEach(b=>b.classList.remove('active'));btn.classList.add('active');if(cSym)loadChart(cSym,r);}
