@@ -109,7 +109,7 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 .empty{text-align:center;padding:60px 20px;color:var(--dim)}
 .empty .ei{font-size:48px;margin-bottom:12px}
 
-/* ── CHART MODAL ── */
+/* ── CHART MODAL & NAVIGATION ── */
 #cmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);backdrop-filter:blur(2px);z-index:999;align-items:center;justify-content:center}
 #cmodal.open{display:flex}
 #cbox{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:min(900px,95vw);box-shadow:0 10px 40px rgba(0,0,0,0.8);overflow:hidden;display:flex;flex-direction:column}
@@ -118,6 +118,13 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 #ccsym{font-size:12px;color:var(--muted);margin-top:4px}
 #cltp_m{font-size:24px;font-weight:800;color:#fff}
 #cchg_m{font-size:13px;font-weight:700;margin-top:4px;text-align:right;}
+
+/* Custom Chart Header Navigation UI */
+.chart-nav-group { display: flex; gap: 6px; border-right: 1px solid var(--border); padding-right: 16px; margin-right: 4px; }
+.nav-btn { background: var(--bg); border: 1px solid var(--border); color: var(--muted); width: 32px; height: 32px; border-radius: 6px; font-size: 20px; font-weight: 300; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; line-height: 1; padding-bottom: 3px; }
+.nav-btn:hover:not(:disabled) { color: #fff; background: var(--dim); border-color: var(--muted); }
+.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
 .chart-controls{padding:12px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 .chart-badge{background:var(--bdark);color:var(--blue);font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;border:1px solid var(--blue);}
 .tb-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;}
@@ -130,7 +137,6 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 #cclose{background:var(--bg);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
 #cclose:hover{color:#fff; background:var(--dim);}
 
-/* Force legend hide just in case */
 .apexcharts-legend { display: none !important; }
 </style>
 </head>
@@ -185,7 +191,13 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
     <div id="chdr">
       <div><div id="ccname">—</div><div id="ccsym">—</div></div>
       <div style="display:flex;align-items:center;gap:16px">
-        <div style="text-align:right"><div id="cltp_m">—</div><div id="cchg_m">—</div></div>
+        <div style="text-align:right; margin-right: 8px;"><div id="cltp_m">—</div><div id="cchg_m">—</div></div>
+        
+        <div class="chart-nav-group">
+          <button class="nav-btn" id="btn-prev" onclick="navChart(-1)" title="Previous Chart (Left Arrow)">‹</button>
+          <button class="nav-btn" id="btn-next" onclick="navChart(1)" title="Next Chart (Right Arrow)">›</button>
+        </div>
+
         <button id="cclose" onclick="cc()">✕</button>
       </div>
     </div>
@@ -227,7 +239,10 @@ let apexChartInstance = null;
 let smaVisible = false;
 let openAcc = new Set(), pcache = {};
 
-// Use the private Cloudflare Worker proxy
+// Navigation State Trackers
+window.currentNavList = [];
+window.currentNavIndex = -1;
+
 const PROXY = 'https://quiet-salad-da44.breakoutcharts18.workers.dev/?url='; 
 
 // Watchlist Processing
@@ -236,7 +251,7 @@ try {
     const stored = localStorage.getItem('atm_wl');
     if(stored) watchlist = new Set(JSON.parse(stored));
 } catch(e) {
-    console.warn("Local storage disabled or unavailable.");
+    console.warn("Local storage disabled.");
 }
 
 function updateWlCount() { 
@@ -263,7 +278,7 @@ async function fetchMarketDataBatch() {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
             try { return JSON.parse(text); } 
-            catch(e) { throw new Error('Invalid JSON received'); }
+            catch(e) { throw new Error('Invalid JSON'); }
         })
         .catch((err) => {
             return { _error: err.message }; 
@@ -293,16 +308,13 @@ async function fetchMarketDataBatch() {
 
     const hmStatus = $('hm-status');
     if(successCount === 0) {
-      hmStatus.innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. The data provider rejected the connection.</span>`;
+      hmStatus.innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. Data provider rejected connection.</span>`;
     } else {
       hmStatus.innerHTML = `<span>Real-time sector performance matrix synced successfully.</span>`;
     }
 
     renderHeatmap();
-    if(pg === 'p2') {
-        if(currentSort === 'sector') buildAcc();
-        else applyScreenerSort(currentSort); 
-    }
+    if(pg === 'p2') { currentSort === 'sector' ? buildAcc() : applyScreenerSort(currentSort); }
     if(pg === 'p_watch') renderWatchlist();
   } catch(e) {
     console.error("Data Sync Failed", e);
@@ -311,7 +323,7 @@ async function fetchMarketDataBatch() {
   setLoad(false);
 }
 
-// ── COLOR GRADIENT ENGINE ──
+// ── HEATMAP UI GENERATOR ──
 function getMatrixClass(pct) {
   if (pct >= 4.0) return 'bg-super-green';
   if (pct >= 1.5) return 'bg-mid-green';
@@ -321,71 +333,44 @@ function getMatrixClass(pct) {
   if (pct >= -4.0) return 'bg-mid-red';
   return 'bg-super-red';
 }
-
 function getMatrixTextClass(pct) {
   if (pct > 0.2) return 'txt-green';
   if (pct >= -0.2 && pct <= 0.2) return 'txt-flat';
   return 'txt-red';
 }
 
-// ── PURE SECTOR-BASED HEATMAP MATRIX ──
 function renderHeatmap() {
   let sectorMetrics = [];
-
   SECTORS.forEach(sec => {
     const activeComps = sec.companies.filter(c => pcache[c.sym] && typeof pcache[c.sym].price === 'number');
     if(activeComps.length === 0) return;
 
     let cumulativePct = 0;
     activeComps.forEach(c => cumulativePct += pcache[c.sym].pct);
-    const averagePct = activeComps.length > 0 ? (cumulativePct / activeComps.length) : 0;
-
     sectorMetrics.push({
-      id: sec.id,
-      name: sec.name,
-      icon: sec.icon,
-      count: activeComps.length,
-      avgPct: averagePct,
+      id: sec.id, name: sec.name, icon: sec.icon, count: activeComps.length,
+      avgPct: activeComps.length > 0 ? (cumulativePct / activeComps.length) : 0,
       industries: sec.industries
     });
   });
 
   sectorMetrics.sort((a, b) => b.avgPct - a.avgPct);
-
-  let heatmapHtml = sectorMetrics.map(sec => {
+  $('heatmap-container').innerHTML = `<div class="heatmap-grid">` + sectorMetrics.map(sec => {
     const bgCls = getMatrixClass(sec.avgPct);
     const textCls = getMatrixTextClass(sec.avgPct);
     const formattedPct = (sec.avgPct >= 0 ? '+' : '') + sec.avgPct.toFixed(2) + '%';
     
-    return `
-      <div class="heatmap-card ${bgCls}" onclick="focusSectorInScreener('${sec.id}')">
-        <div>
-          <div class="heatmap-symbol">${sec.icon} ${sec.name}</div>
-          <div class="heatmap-sub">${sec.industries.slice(0,2).join(' · ')}</div>
-        </div>
+    return `<div class="heatmap-card ${bgCls}" onclick="focusSectorInScreener('${sec.id}')">
+        <div><div class="heatmap-symbol">${sec.icon} ${sec.name}</div><div class="heatmap-sub">${sec.industries.slice(0,2).join(' · ')}</div></div>
         <div class="heatmap-pct ${textCls}">${formattedPct}</div>
-      </div>
-    `;
-  }).join('');
-
-  $('heatmap-container').innerHTML = `
-    <div class="heatmap-grid">
-      ${heatmapHtml}
-    </div>
-  `;
+      </div>`;
+  }).join('') + `</div>`;
 }
 
-// Route Heatmap clicks directly to Full List Accordions
 function focusSectorInScreener(sectorId) {
-    sp('p2');
-    applyScreenerSort('default');
-    if(!openAcc.has(sectorId)) {
-        togAcc(sectorId);
-    }
-    setTimeout(() => {
-        const row = $('acc-' + sectorId);
-        if(row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 150);
+    sp('p2'); applyScreenerSort('default');
+    if(!openAcc.has(sectorId)) togAcc(sectorId);
+    setTimeout(() => { const row = $('acc-' + sectorId); if(row) row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
 }
 
 // ── COMPONENT DRAWER ELEMENT STRUCTS ──
@@ -406,16 +391,16 @@ function buildCoCard(c) {
   const cStr = d.price ? (d.pct>=0?'+':'')+d.pct.toFixed(2)+'%' : '—';
   const cCol = d.pct>=0 ? 'var(--green)' : 'var(--red)';
   
-  return `<div class="cco" onclick="oc('${c.sym}','${c.name.replace(/'/g,"\\'")}')">
+  // Attach metadata securely for Context-Aware Navigation
+  const dataName = c.name.replace(/"/g, '&quot;');
+  const escapeClickName = c.name.replace(/'/g,"\\'");
+  
+  return `<div class="cco" data-sym="${c.sym}" data-name="${dataName}" onclick="oc('${c.sym}','${escapeClickName}')">
       <button class="star-btn ${isSt ? 'starred' : ''}" onclick="tgs(event, '${c.sym}')">${isSt ? '★' : '☆'}</button>
       <div class="ctop">
-        <div>
-          <div class="cname">${c.name.length>28?c.name.slice(0,28)+'…':c.name}</div>
-          <div class="csym">${c.sym}</div>
-        </div>
+        <div><div class="cname">${c.name.length>28?c.name.slice(0,28)+'…':c.name}</div><div class="csym">${c.sym}</div></div>
         <div><div class="cltp">${pStr}</div><div class="cchg" style="color:${cCol}">${cStr}</div></div>
       </div>
-      ${c.tags && c.tags.length > 0 ? `<div class="c-tags">${c.tags.slice(0,3).map(t=>`<span class="c-tag">${t}</span>`).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -426,40 +411,26 @@ function renderWatchlist() {
   $('emp_watch').style.display = comps.length > 0 ? 'none' : 'block';
 }
 
-// ── ORDERLY DRIVEN SECTIONAL SORT ENGINE ──
-function applyScreenerSort(mode) {
-    currentSort = mode;
-    $('sort-select').value = mode;
-    buildAcc();
-}
+// ── DRIVEN SECTIONAL SORT ENGINE ──
+function applyScreenerSort(mode) { currentSort = mode; $('sort-select').value = mode; buildAcc(); }
 
 function buildAcc(){
   let processedSectors = SECTORS.map(sec => {
       const activeComps = sec.companies.filter(c => pcache[c.sym]);
       let sectorAvg = 0;
       if(activeComps.length > 0) {
-          let sum = 0;
-          activeComps.forEach(c => sum += pcache[c.sym].pct);
+          let sum = 0; activeComps.forEach(c => sum += pcache[c.sym].pct);
           sectorAvg = sum / activeComps.length;
       }
-
       let sortedCompanies = [...sec.companies];
-      if (currentSort === 'gainers') {
-          sortedCompanies.sort((a, b) => (pcache[b.sym]?.pct || -9999) - (pcache[a.sym]?.pct || -9999));
-      } else if (currentSort === 'losers') {
-          sortedCompanies.sort((a, b) => (pcache[a.sym]?.pct || 9999) - (pcache[b.sym]?.pct || 9999));
-      } else if (currentSort === 'alpha') {
-          sortedCompanies.sort((a, b) => a.name.localeCompare(b.name));
-      }
-
+      if (currentSort === 'gainers') sortedCompanies.sort((a, b) => (pcache[b.sym]?.pct || -9999) - (pcache[a.sym]?.pct || -9999));
+      else if (currentSort === 'losers') sortedCompanies.sort((a, b) => (pcache[a.sym]?.pct || 9999) - (pcache[b.sym]?.pct || 9999));
+      else if (currentSort === 'alpha') sortedCompanies.sort((a, b) => a.name.localeCompare(b.name));
       return { ...sec, companies: sortedCompanies, calculatedAvg: sectorAvg };
   });
 
-  if (currentSort === 'gainers') {
-      processedSectors.sort((a, b) => b.calculatedAvg - a.calculatedAvg);
-  } else if (currentSort === 'losers') {
-      processedSectors.sort((a, b) => a.calculatedAvg - b.calculatedAvg);
-  }
+  if (currentSort === 'gainers') processedSectors.sort((a, b) => b.calculatedAvg - a.calculatedAvg);
+  else if (currentSort === 'losers') processedSectors.sort((a, b) => a.calculatedAvg - b.calculatedAvg);
 
   $('accs').innerHTML = processedSectors.map(sec => {
     const isOpened = openAcc.has(sec.id) ? 'open' : '';
@@ -470,27 +441,19 @@ function buildAcc(){
           <div><div class="atitle">${sec.name}</div>
           <div class="acount">${sec.companies.length} companies · ${sec.industries.slice(0,3).join(', ')}</div></div>
         </div>
-        <div class="ar">
-          <span class="achip" id="chip-${sec.id}">—</span>
-          <span class="achev">▼</span>
-        </div>
+        <div class="ar"><span class="achip" id="chip-${sec.id}">—</span><span class="achev">▼</span></div>
       </div>
-      <div class="ab ${isOpened}" id="ab-${sec.id}">
-        <div class="cgrid">${sec.companies.map(buildCoCard).join('')}</div>
-      </div>
+      <div class="ab ${isOpened}" id="ab-${sec.id}"><div class="cgrid">${sec.companies.map(buildCoCard).join('')}</div></div>
     </div>`;
   }).join('');
     
   processedSectors.forEach(sec => {
     const el = $('chip-'+sec.id);
-    if(el && sec.companies.length > 0) {
-        if(sec.calculatedAvg !== 0) {
-            el.textContent = (sec.calculatedAvg >= 0 ? '▲ ' : '▼ ') + sec.calculatedAvg.toFixed(2) + '%';
-            el.style.color = sec.calculatedAvg >= 0 ? 'var(--green)' : 'var(--red)';
-        }
+    if(el && sec.companies.length > 0 && sec.calculatedAvg !== 0) {
+        el.textContent = (sec.calculatedAvg >= 0 ? '▲ ' : '▼ ') + sec.calculatedAvg.toFixed(2) + '%';
+        el.style.color = sec.calculatedAvg >= 0 ? 'var(--green)' : 'var(--red)';
     }
   });
-
   filt($('srch').value);
 }
 
@@ -519,7 +482,7 @@ function filt(q){
   $('emp2').style.display=any?'none':'block';
 }
 
-// ── OPEN-SOURCE APEXCHARTS ENGINE ──
+// ── OPEN-SOURCE APEXCHARTS ENGINE + SMART NAVIGATION ──
 function oc(sym, name) {
   cSym = sym;
   $('ccname').textContent = name; 
@@ -529,6 +492,13 @@ function oc(sym, name) {
   if (smaVisible && $('btn-sma')) $('btn-sma').classList.add('active');
   else if ($('btn-sma')) $('btn-sma').classList.remove('active');
   
+  // -- CONTEXT-AWARE NAVIGATION LOGIC --
+  // Grab all visible stock cards currently rendered on the screen
+  const visibleCards = Array.from(document.querySelectorAll('.page.active .cco')).filter(c => c.style.display !== 'none');
+  window.currentNavList = visibleCards.map(c => ({ sym: c.dataset.sym, name: c.dataset.name }));
+  window.currentNavIndex = window.currentNavList.findIndex(item => item.sym === sym);
+  updateNavButtons();
+  
   if (apexChartInstance) {
      apexChartInstance.destroy();
      apexChartInstance = null;
@@ -536,6 +506,25 @@ function oc(sym, name) {
   $('lwc').innerHTML = '';
   
   loadChart(sym);
+}
+
+function updateNavButtons() {
+    if(!window.currentNavList || window.currentNavIndex === -1) {
+        if($('btn-prev')) $('btn-prev').disabled = true;
+        if($('btn-next')) $('btn-next').disabled = true;
+        return;
+    }
+    if($('btn-prev')) $('btn-prev').disabled = window.currentNavIndex <= 0;
+    if($('btn-next')) $('btn-next').disabled = window.currentNavIndex >= window.currentNavList.length - 1;
+}
+
+function navChart(direction) {
+    if(!window.currentNavList) return;
+    const newIdx = window.currentNavIndex + direction;
+    if(newIdx >= 0 && newIdx < window.currentNavList.length) {
+        const target = window.currentNavList[newIdx];
+        oc(target.sym, target.name);
+    }
 }
 
 function tsma(btn) {
@@ -586,31 +575,16 @@ async function loadChart(sym) {
     if (candleData.length >= 20) {
       for (let i = 19; i < candleData.length; i++) {
         let sum = 0;
-        for (let j = 0; j < 20; j++) {
-          sum += rawClosePrices[i - j].close;
-        }
-        smaData.push({
-          x: rawClosePrices[i].x,
-          y: parseFloat((sum / 20).toFixed(2))
-        });
+        for (let j = 0; j < 20; j++) sum += rawClosePrices[i - j].close;
+        smaData.push({ x: rawClosePrices[i].x, y: parseFloat((sum / 20).toFixed(2)) });
       }
     }
 
-    const seriesPayload = [{
-      name: 'Price Action',
-      type: 'candlestick',
-      data: candleData
-    }];
-
+    const seriesPayload = [{ name: 'Price Action', type: 'candlestick', data: candleData }];
     if (smaVisible && smaData.length > 0) {
-      seriesPayload.push({
-        name: '20 SMA',
-        type: 'line',
-        data: smaData
-      });
+      seriesPayload.push({ name: '20 SMA', type: 'line', data: smaData });
     }
 
-    // FIXED: Using chart.type: 'line' and hiding the legend ensures the Candlestick logic renders correctly
     const options = {
       series: seriesPayload,
       chart: {
@@ -623,38 +597,15 @@ async function loadChart(sym) {
       },
       legend: { show: false },
       colors: ['#fbbf24'], 
-      plotOptions: {
-        candlestick: {
-          colors: { upward: '#4ade80', downward: '#f87171' },
-          wick: { useFillColor: true }
-        }
-      },
-      stroke: { 
-        width: [1, 2],
-        curve: 'smooth'
-      },
-      grid: {
-        borderColor: '#1a1a2e',
-        xaxis: { lines: { show: true } }
-      },
-      xaxis: {
-        type: 'datetime',
-        labels: { style: { colors: '#55557a' } },
-        axisBorder: { color: '#1a1a2e' },
-        axisTicks: { color: '#1a1a2e' }
-      },
+      plotOptions: { candlestick: { colors: { upward: '#4ade80', downward: '#f87171' }, wick: { useFillColor: true } } },
+      stroke: { width: [1, 2], curve: 'smooth' },
+      grid: { borderColor: '#1a1a2e', xaxis: { lines: { show: true } } },
+      xaxis: { type: 'datetime', labels: { style: { colors: '#55557a' } }, axisBorder: { color: '#1a1a2e' }, axisTicks: { color: '#1a1a2e' } },
       yaxis: {
         opposite: true,
-        labels: {
-          style: { colors: '#e2e2f0' },
-          formatter: (val) => '₹' + val.toLocaleString('en-IN', { maximumFractionDigits: 0 })
-        }
+        labels: { style: { colors: '#e2e2f0' }, formatter: (val) => '₹' + val.toLocaleString('en-IN', { maximumFractionDigits: 0 }) }
       },
-      tooltip: {
-        theme: 'dark',
-        shared: true,
-        x: { format: 'dd MMM yyyy' }
-      }
+      tooltip: { theme: 'dark', shared: true, x: { format: 'dd MMM yyyy' } }
     };
 
     if (apexChartInstance) { apexChartInstance.destroy(); }
@@ -681,6 +632,14 @@ async function loadChart(sym) {
 
 function cc(){$('cmodal').classList.remove('open');}
 function cmc(e){if(e.target===$('cmodal'))cc();}
+
+// Global Keyboard Navigation
+document.addEventListener('keydown', (e) => {
+    if (!$('cmodal').classList.contains('open')) return;
+    if (e.key === 'ArrowLeft') navChart(-1);
+    else if (e.key === 'ArrowRight') navChart(1);
+    else if (e.key === 'Escape') cc();
+});
 
 // ── SYSTEM NAVIGATION ENGINE ──
 function setLoad(on){
