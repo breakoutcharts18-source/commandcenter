@@ -234,8 +234,8 @@ async function fetchMarketDataBatch() {
   const fetchPromises = [];
   
   for (let i = 0; i < allSymbols.length; i += chunkSize) {
-    const chunk = allSymbols.slice(i, i + chunkSize).join(',');
-    // Changed to query2 - it is much less prone to rate limiting without cookies
+    // FIX: Encode the chunk before inserting it into the Yahoo URL
+    const chunk = encodeURIComponent(allSymbols.slice(i, i + chunkSize).join(','));
     const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${chunk}`;
     
     fetchPromises.push(
@@ -276,7 +276,6 @@ async function fetchMarketDataBatch() {
     });
 
     if(successCount === 0) {
-      // We will now see the exact error instead of a generic message
       $('hm-status').innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. Please check your browser developer tools or the Cloudflare dashboard.</span>`;
     } else {
       $('hm-status').innerHTML = '<span>Real-time sector performance matrix. Sort order aligns with highest daily relative momentum.</span>';
