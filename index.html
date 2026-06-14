@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>ATM Terminal — Institutional Equity Workspace</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.3/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 /* ── BASE VARIABLES & RESET ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -82,11 +82,15 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 .star-btn:hover{color:#fff;}
 .c-tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
 .c-tag{font-size:10px;color:var(--blue);background:rgba(59,130,246,0.1);padding:3px 8px;border-radius:4px;font-weight:600;}
+.c-sec-tag{font-size:10px;color:#a855f7;background:rgba(168,85,247,0.1);padding:3px 8px;border-radius:4px;font-weight:600;margin-bottom:8px;display:inline-block;}
 
-/* ── FULL LIST ACCORDION ── */
-.srch{position:relative;margin-bottom:20px}
+/* ── FULL LIST CONTROLS & ACCORDION ── */
+.filters-bar{display:flex;gap:12px;margin-bottom:20px;}
+.srch{position:relative;flex:1;}
 .si{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px 16px 12px 40px;font-size:13px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
 .si:focus{border-color:var(--blue)}
+.si-select{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:0 16px;font-size:13px;color:var(--text);font-weight:600;outline:none;cursor:pointer;transition:border-color .15s}
+.si-select:focus{border-color:var(--blue)}
 .sico{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
 .acc{margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .ah{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;cursor:pointer;background:var(--surface);transition:background .15s;user-select:none}
@@ -152,7 +156,17 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 
 <div class="page" id="p2">
   <div class="status"><span>Live pricing infrastructure via Yahoo Finance batch architecture · 35 sectors · 300+ companies</span></div>
-  <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search by company name, symbol, or theme tag (e.g. #Defense, Paints, HDFC)" oninput="filt(this.value)"/></div>
+  
+  <div class="filters-bar">
+    <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search by company name, symbol, or theme tag..." oninput="filt(this.value)"/></div>
+    <select class="si-select" id="sort-select" onchange="sortList(this.value)">
+      <option value="sector">🗂️ Sort: By Sector (Default)</option>
+      <option value="gainers">📈 Sort: Top Gainers</option>
+      <option value="losers">📉 Sort: Top Losers</option>
+      <option value="alpha">🔡 Sort: Alphabetical (A-Z)</option>
+    </select>
+  </div>
+
   <div id="accs"></div>
   <div class="empty" id="emp2" style="display:none"><div class="ei">🏢</div><div>No results found</div></div>
 </div>
@@ -204,14 +218,14 @@ SECTORS.forEach(sec => {
 // ── STATE VARIABLES ──
 const $ = id => document.getElementById(id);
 let pg = 'p1';
+let currentSort = 'sector'; // Tracks current full list sort mode
 let cSym = ''; 
 let lwChart = null, cSeries = null, vSeries = null, smaSeries = null, smaVisible = false;
 let openAcc = new Set(), pcache = {};
 
-// ── CUSTOM PRIVATE PROXY INTEGRATION ──
 const PROXY = 'https://quiet-salad-da44.breakoutcharts18.workers.dev/?url='; 
 
-// Watchlist Processing with safe local storage fallback
+// Watchlist Processing
 let watchlist = new Set();
 try {
     const stored = localStorage.getItem('atm_wl');
@@ -234,7 +248,7 @@ async function fetchMarketDataBatch() {
   const fetchPromises = [];
   
   for (let i = 0; i < allSymbols.length; i += chunkSize) {
-    // FIX: Encode the chunk before inserting it into the Yahoo URL
+    // FIX 1: Double encode to prevent M&M.NS from breaking the Cloudflare target parameter
     const chunk = encodeURIComponent(allSymbols.slice(i, i + chunkSize).join(','));
     const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${chunk}`;
     
@@ -243,11 +257,8 @@ async function fetchMarketDataBatch() {
         .then(async (res) => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
-            try {
-                return JSON.parse(text); 
-            } catch(e) {
-                throw new Error('Invalid JSON received');
-            }
+            try { return JSON.parse(text); } 
+            catch(e) { throw new Error('Invalid JSON received'); }
         })
         .catch((err) => {
             return { _error: err.message }; 
@@ -276,13 +287,16 @@ async function fetchMarketDataBatch() {
     });
 
     if(successCount === 0) {
-      $('hm-status').innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. Please check your browser developer tools or the Cloudflare dashboard.</span>`;
+      $('hm-status').innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. Check browser console or worker logs.</span>`;
     } else {
       $('hm-status').innerHTML = '<span>Real-time sector performance matrix. Sort order aligns with highest daily relative momentum.</span>';
     }
 
     renderHeatmap();
-    if(pg === 'p2') buildAcc();
+    if(pg === 'p2') {
+        if(currentSort === 'sector') buildAcc();
+        else sortList(currentSort); // Maintain dynamic sort on background refresh
+    }
     if(pg === 'p_watch') renderWatchlist();
   } catch(e) {
     console.error("Data Sync Failed", e);
@@ -348,30 +362,30 @@ function renderHeatmap() {
 function tgs(e, sym) {
   e.stopPropagation();
   if(watchlist.has(sym)) watchlist.delete(sym); else watchlist.add(sym);
-  
-  try {
-      localStorage.setItem('atm_wl', JSON.stringify([...watchlist]));
-  } catch(err) {
-      console.warn("Could not save to local storage");
-  }
-  
+  try { localStorage.setItem('atm_wl', JSON.stringify([...watchlist])); } catch(err) {}
   updateWlCount();
   e.target.classList.toggle('starred', watchlist.has(sym));
   e.target.textContent = watchlist.has(sym) ? '★' : '☆';
   if(pg==='p_watch') renderWatchlist();
 }
 
-function buildCoCard(c) {
+function buildCoCard(c, includeSectorTag = false) {
   const isSt = watchlist.has(c.sym);
   const d = pcache[c.sym] || {price: 0, pct: 0};
   const pStr = d.price ? '₹'+d.price.toLocaleString('en-IN',{minimumFractionDigits:2}) : '—';
   const cStr = d.price ? (d.pct>=0?'+':'')+d.pct.toFixed(2)+'%' : '—';
   const cCol = d.pct>=0 ? 'var(--green)' : 'var(--red)';
   
+  const secTagHtml = includeSectorTag && c.secName ? `<span class="c-sec-tag">${c.secName}</span>` : '';
+  
   return `<div class="cco" onclick="oc('${c.sym}','${c.name.replace(/'/g,"\\'")}')">
       <button class="star-btn ${isSt ? 'starred' : ''}" onclick="tgs(event, '${c.sym}')">${isSt ? '★' : '☆'}</button>
       <div class="ctop">
-        <div><div class="cname">${c.name.length>28?c.name.slice(0,28)+'…':c.name}</div><div class="csym">${c.sym}</div></div>
+        <div>
+          ${secTagHtml}
+          <div class="cname">${c.name.length>28?c.name.slice(0,28)+'…':c.name}</div>
+          <div class="csym">${c.sym}</div>
+        </div>
         <div><div class="cltp">${pStr}</div><div class="cchg" style="color:${cCol}">${cStr}</div></div>
       </div>
       ${c.tags && c.tags.length > 0 ? `<div class="c-tags">${c.tags.slice(0,3).map(t=>`<span class="c-tag">${t}</span>`).join('')}</div>` : ''}
@@ -381,12 +395,41 @@ function buildCoCard(c) {
 function renderWatchlist() {
   const comps = [];
   SECTORS.forEach(s => s.companies.forEach(c => { if(watchlist.has(c.sym)) comps.push(c); }));
-  $('watch-grid').innerHTML = comps.map(buildCoCard).join('');
+  $('watch-grid').innerHTML = comps.map(c => buildCoCard(c, false)).join('');
   $('emp_watch').style.display = comps.length > 0 ? 'none' : 'block';
+}
+
+// ── FULL LIST SORTING ENGINE ──
+function sortList(mode) {
+  currentSort = mode;
+  if (mode === 'sector') {
+    buildAcc(); 
+    return;
+  }
+
+  // Create a flattened array of all valid companies with sector name attached
+  let allComps = [];
+  SECTORS.forEach(s => s.companies.forEach(c => {
+     allComps.push({...c, secName: s.name});
+  }));
+
+  if (mode === 'gainers') {
+    allComps.sort((a,b) => (pcache[b.sym]?.pct || -9999) - (pcache[a.sym]?.pct || -9999));
+  } else if (mode === 'losers') {
+    allComps.sort((a,b) => (pcache[a.sym]?.pct || 9999) - (pcache[b.sym]?.pct || 9999));
+  } else if (mode === 'alpha') {
+    allComps.sort((a,b) => a.name.localeCompare(b.name));
+  }
+
+  $('accs').innerHTML = `<div class="cgrid">` + allComps.map(c => buildCoCard(c, true)).join('') + `</div>`;
+  filt($('srch').value); // Re-apply any active search
 }
 
 // ── STABLE TAXONOMY ACCORDION SYSTEM ──
 function buildAcc(){
+  currentSort = 'sector';
+  if($('sort-select')) $('sort-select').value = 'sector';
+  
   $('accs').innerHTML=SECTORS.map(sec=>`
     <div class="acc" id="acc-${sec.id}">
       <div class="ah" id="ah-${sec.id}" onclick="togAcc('${sec.id}')">
@@ -400,7 +443,7 @@ function buildAcc(){
         </div>
       </div>
       <div class="ab" id="ab-${sec.id}">
-        <div class="cgrid">${sec.companies.map(buildCoCard).join('')}</div>
+        <div class="cgrid">${sec.companies.map(c => buildCoCard(c, false)).join('')}</div>
       </div>
     </div>`).join('');
     
@@ -424,6 +467,22 @@ function togAcc(id){
 
 function filt(q){
   const t=q.trim().toLowerCase(); let any=false;
+  
+  // Handle Search for sorted flat lists
+  if(currentSort !== 'sector') {
+      let cc = 0;
+      document.querySelectorAll('#accs .cco').forEach(c => {
+          const show = c.querySelector('.cname').textContent.toLowerCase().includes(t) || 
+                       c.querySelector('.csym').textContent.toLowerCase().includes(t) ||
+                       c.querySelector('.c-sec-tag')?.textContent.toLowerCase().includes(t);
+          c.style.display = show ? '' : 'none';
+          if(show) cc++;
+      });
+      $('emp2').style.display = cc > 0 ? 'none' : 'block';
+      return;
+  }
+
+  // Handle Search for default Accordion layout
   SECTORS.forEach(sec=>{
     const ae=$('acc-'+sec.id),be=$('ab-'+sec.id),he=$('ah-'+sec.id);
     if(!ae)return;
@@ -432,7 +491,7 @@ function filt(q){
     const sm=sec.name.toLowerCase().includes(t)||sec.industries.some(i=>i.toLowerCase().includes(t));
     let cc=0;
     ae.querySelectorAll('.cco').forEach(c=>{
-      const show=sm||c.querySelector('.cname').textContent.toLowerCase().includes(t)||c.querySelector('.csym').textContent.toLowerCase().includes(t)||c.tags.some(tag => tag.toLowerCase().includes(t));
+      const show=sm||c.querySelector('.cname').textContent.toLowerCase().includes(t)||c.querySelector('.csym').textContent.toLowerCase().includes(t)||c.tags?.some(tag => tag.toLowerCase().includes(t));
       c.style.display=show?'':'none'; if(show)cc++;
     });
     if(sm||cc>0){ae.style.display='';be.classList.add('open');he.classList.add('open');any=true;}
@@ -477,7 +536,6 @@ async function loadChart(sym){
   $('cload').innerHTML = `<div class="cspn"></div><span style="margin-top:10px;">Loading daily chart intervals…</span>`;
   cSeries.setData([]); vSeries.setData([]); smaSeries.setData([]);
   
-  // Also updated this chart endpoint to query2
   const url=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
   
   try{
@@ -492,19 +550,28 @@ async function loadChart(sym){
     const ts=res.timestamp||[],q=res.indicators?.quote?.[0]||{},m=res.meta;
     
     const candles=[], volumes=[];
-    let lastTime = 0;
+    let lastTimeStr = '';
     
     for(let i=0; i<ts.length; i++) {
       const t = ts[i];
-      if(t <= lastTime) continue; 
-      lastTime = t;
-      
       if(q.open[i] != null && q.high[i] != null && q.low[i] != null && q.close[i] != null) {
+        // FIX 2: Strict YYYY-MM-DD string conversion to prevent LightweightCharts from crashing on duplicate intraday ticks
         const d = new Date(t * 1000);
-        const cTime = { year: d.getFullYear(), month: d.getMonth()+1, day: d.getDate() };
+        const y = d.getFullYear();
+        const mStr = String(d.getMonth() + 1).padStart(2, '0');
+        const dStr = String(d.getDate()).padStart(2, '0');
+        const timeStr = `${y}-${mStr}-${dStr}`;
         
-        candles.push({time: cTime, open:q.open[i], high:q.high[i], low:q.low[i], close:q.close[i]});
-        volumes.push({time: cTime, value:q.volume[i]||0, color: q.close[i]>=q.open[i]?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'});
+        // If Yahoo sends an intraday update for the same day, overwrite the last candle instead of pushing a duplicate
+        if(timeStr === lastTimeStr && candles.length > 0) {
+           candles[candles.length - 1] = {time: timeStr, open:q.open[i], high:q.high[i], low:q.low[i], close:q.close[i]};
+           volumes[volumes.length - 1] = {time: timeStr, value:q.volume[i]||0, color: q.close[i]>=q.open[i]?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'};
+           continue;
+        }
+        lastTimeStr = timeStr;
+        
+        candles.push({time: timeStr, open:q.open[i], high:q.high[i], low:q.low[i], close:q.close[i]});
+        volumes.push({time: timeStr, value:q.volume[i]||0, color: q.close[i]>=q.open[i]?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'});
       }
     }
     
@@ -554,7 +621,10 @@ function sp(id){
   document.querySelectorAll('.n-tab').forEach(t=>t.classList.toggle('active',t.dataset.p===id));
   
   if(id==='p1') renderHeatmap();
-  if(id==='p2' && $('accs') && $('accs').children.length===0) buildAcc();
+  if(id==='p2') {
+      if(currentSort === 'sector') buildAcc();
+      else sortList(currentSort);
+  }
   if(id==='p_watch') renderWatchlist();
 }
 
