@@ -4,7 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>ATM Terminal — Institutional Equity Workspace</title>
-<!-- Free, Open-Source Chart Engine by TradingView -->
 <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 /* ── BASE VARIABLES & RESET ── */
@@ -50,12 +49,12 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 .hm-sector-group { margin-bottom: 24px; }
 .hm-sector-title { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; }
 .hm-sector-title span.count { font-size: 10px; color: var(--dim); background: var(--s2); padding: 2px 8px; border-radius: 10px; }
-.heatmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-.heatmap-card { display: flex; flex-direction: column; justify-content: space-between; padding: 12px; border-radius: 8px; cursor: pointer; transition: transform 0.15s ease, filter 0.15s ease; border: 1px solid rgba(255,255,255,0.05); min-height: 75px; position: relative; }
+.heatmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.heatmap-card { display: flex; flex-direction: column; justify-content: space-between; padding: 16px; border-radius: 8px; cursor: pointer; transition: transform 0.15s ease, filter 0.15s ease; border: 1px solid rgba(255,255,255,0.05); min-height: 90px; position: relative; }
 .heatmap-card:hover { transform: translateY(-3px); filter: brightness(1.2); box-shadow: 0 6px 16px rgba(0,0,0,0.4); z-index: 2; }
-.heatmap-symbol { font-weight: 800; font-size: 12px; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 4px; }
-.heatmap-price { font-size: 10px; color: rgba(255,255,255,0.7); }
-.heatmap-pct { font-size: 14px; font-weight: 800; text-align: right; margin-top: auto; }
+.heatmap-symbol { font-weight: 800; font-size: 13px; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 4px; }
+.heatmap-price { font-size: 11px; color: rgba(255,255,255,0.6); }
+.heatmap-pct { font-size: 18px; font-weight: 900; text-align: right; margin-top: auto; }
 
 /* Fluid Matrix Gradients */
 .bg-super-green { background: #04441c; border-color: #16a34a; }
@@ -83,7 +82,6 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 .star-btn:hover{color:#fff;}
 .c-tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
 .c-tag{font-size:10px;color:var(--blue);background:rgba(59,130,246,0.1);padding:3px 8px;border-radius:4px;font-weight:600;}
-.c-sec-tag{font-size:10px;color:#a855f7;background:rgba(168,85,247,0.1);padding:3px 8px;border-radius:4px;font-weight:600;margin-bottom:8px;display:inline-block;}
 
 /* ── FULL LIST CONTROLS & ACCORDION ── */
 .filters-bar{display:flex;gap:12px;margin-bottom:20px;}
@@ -160,10 +158,10 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
   
   <div class="filters-bar">
     <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search by company name, symbol, or theme tag..." oninput="filt(this.value)"/></div>
-    <select class="si-select" id="sort-select" onchange="sortList(this.value)">
-      <option value="sector">🗂️ Sort: By Sector (Default)</option>
-      <option value="gainers">📈 Sort: Top Gainers</option>
-      <option value="losers">📉 Sort: Top Losers</option>
+    <select class="si-select" id="sort-select" onchange="applyScreenerSort(this.value)">
+      <option value="default">🗂️ Sort: Original Order</option>
+      <option value="gainers">📈 Sort: Top Gainers (By Section)</option>
+      <option value="losers">📉 Sort: Top Losers (By Section)</option>
       <option value="alpha">🔡 Sort: Alphabetical (A-Z)</option>
     </select>
   </div>
@@ -200,39 +198,19 @@ nav{background:#07070f;border-bottom:1px solid var(--border);padding:0 20px;disp
 
 <script>
 // ── INTTACT ORIGINAL DEEP-TAXO STRUCTURE DATA ENGINE ──
-const SECTORS = [{"id":"defence_pvt","name":"Defence \u2014 Private","icon":"\ud83d\udee1\ufe0f","color":"#3b82f6","industries":["Drones","Electronics","Missiles","Systems Integration","Ship Building"],"companies":[{"sym":"ASTRAMICRO.NS","name":"Astra Microwave Products Limited"},{"sym":"APOLLO.NS","name":"Apollo Micro Systems Limited"},{"sym":"DATAPATTNS.NS","name":"Data Patterns (India) Limited"},{"sym":"IDEAFORGE.NS","name":"Ideaforge Technology Limited"},{"sym":"ZENTEC.NS","name":"Zen Technologies Limited"},{"sym":"PARAS.NS","name":"Paras Defence and Space Technologies Limited"},{"sym":"SWANDEF.NS","name":"Swan Defence and Heavy Industries Limited"},{"sym":"SIKA.NS","name":"Sika Interplant Systems Limited"},{"sym":"MIDHANI.NS","name":"Mishra Dhatu Nigam Limited"},{"sym":"BDL.NS","name":"Bharat Dynamics Limited"},{"sym":"MTARTECH.NS","name":"Mtar Technologies Limited"}]},{"id":"defence_psu","name":"Defence \u2014 PSU","icon":"\u2694\ufe0f","color":"#1d4ed8","industries":["Aerospace","Electronics","Shipbuilding","Ammunition","Vehicles"],"companies":[{"sym":"HAL.NS","name":"Hindustan Aeronautics Limited"},{"sym":"BEL.NS","name":"Bharat Electronics Limited"},{"sym":"BEML.NS","name":"BEML Limited"},{"sym":"BDL.NS","name":"Bharat Dynamics Limited"},{"sym":"GRSE.NS","name":"Garden Reach Shipbuilders & Engineers Limited"},{"sym":"COCHINSHIP.NS","name":"Cochin Shipyard Limited"},{"sym":"MAZDOCK.NS","name":"Mazagon Dock Shipbuilders Limited"},{"sym":"MIDHANI.NS","name":"Mishra Dhatu Nigam Limited"},{"sym":"ITI.NS","name":"ITI Limited"}]},{"id":"psu_bank","name":"PSU Banks","icon":"\ud83c\udfe6","color":"#f59e0b","industries":["Retail Banking","Corporate Lending","Agriculture Credit","MSME","Trade Finance"],"companies":[{"sym":"SBIN.NS","name":"State Bank of India"},{"sym":"BANKBARODA.NS","name":"Bank of Baroda"},{"sym":"BANKINDIA.NS","name":"Bank of India"},{"sym":"CANBK.NS","name":"Canara Bank"},{"sym":"PNB.NS","name":"Punjab National Bank"},{"sym":"UNIONBANK.NS","name":"Union Bank of India"},{"sym":"UCOBANK.NS","name":"UCO Bank"},{"sym":"CENTRALBK.NS","name":"Central Bank of India"},{"sym":"MAHABANK.NS","name":"Bank of Maharashtra"},{"sym":"INDIANB.NS","name":"Indian Bank"}]},{"id":"pvt_bank","name":"Private Banks","icon":"\ud83c\udfdb\ufe0f","color":"#06b6d4","industries":["Retail Banking","Wealth Mgmt","Credit Cards","Home Loans","Digital Banking"],"companies":[{"sym":"HDFCBANK.NS","name":"HDFC Bank Limited"},{"sym":"ICICIBANK.NS","name":"ICICI Bank Limited"},{"sym":"AXISBANK.NS","name":"Axis Bank Limited"},{"sym":"KOTAKBANK.NS","name":"Kotak Mahindra Bank Limited"},{"sym":"INDUSINDBK.NS","name":"IndusInd Bank Limited"},{"sym":"FEDERALBNK.NS","name":"The Federal Bank  Limited"},{"sym":"IDFCFIRSTB.NS","name":"IDFC First Bank Limited"},{"sym":"YESBANK.NS","name":"Yes Bank Limited"},{"sym":"RBLBANK.NS","name":"RBL Bank Limited"},{"sym":"DCBBANK.NS","name":"DCB Bank Limited"},{"sym":"CSBBANK.NS","name":"CSB Bank Limited"},{"sym":"KTKBANK.NS","name":"The Karnataka Bank Limited"}]},{"id":"sfb","name":"Small Finance Banks","icon":"\ud83c\udfe7","color":"#8b5cf6","industries":["Microfinance","SME Loans","Savings Accounts","Rural Credit","MSME"],"companies":[{"sym":"AUBANK.NS","name":"AU Small Finance Bank Limited"},{"sym":"CAPITALSFB.NS","name":"Capital Small Finance Bank Limited"},{"sym":"EQUITASBNK.NS","name":"Equitas Small Finance Bank Limited"},{"sym":"ESAFSFB.NS","name":"ESAF Small Finance Bank Limited"},{"sym":"SURYODAY.NS","name":"Suryoday Small Finance Bank Limited"},{"sym":"UJJIVANSFB.NS","name":"Ujjivan Small Finance Bank Limited"},{"sym":"UTKARSHBNK.NS","name":"Utkarsh Small Finance Bank Limited"},{"sym":"JSFB.NS","name":"Jana Small Finance Bank Limited"}]},{"id":"nbfc","name":"NBFCs & Microfinance","icon":"\ud83d\udcb3","color":"#a855f7","industries":["Consumer Loans","Gold Loans","Vehicle Finance","Micro-credit","Housing Finance"],"companies":[{"sym":"BAJFINANCE.NS","name":"Bajaj Finance Limited"},{"sym":"BAJAJFINSV.NS","name":"Bajaj Finserv Limited"},{"sym":"MUTHOOTFIN.NS","name":"Muthoot Finance Limited"},{"sym":"SHRIRAMFIN.NS","name":"Shriram Finance Limited"},{"sym":"MANAPPURAM.NS","name":"Manappuram Finance Limited"},{"sym":"CHOLAFIN.NS","name":"Cholamandalam Investment and Finance Company "},{"sym":"M&MFIN.NS","name":"Mahindra & Mahindra Financial Services Limite"},{"sym":"POONAWALLA.NS","name":"Poonawalla Fincorp Limited"},{"sym":"CREDITACC.NS","name":"CREDITACCESS GRAMEEN LIMITED"},{"sym":"SPANDANA.NS","name":"Spandana Sphoorty Financial Limited"},{"sym":"SATIN.NS","name":"Satin Creditcare Network Limited"},{"sym":"FUSION.NS","name":"Fusion Finance Limited"}]},{"id":"insurance","name":"Insurance","icon":"\ud83d\udee1\ufe0f","color":"#ec4899","industries":["Life Insurance","General Insurance","Health Insurance","Reinsurance","Crop Insurance"],"companies":[{"sym":"HDFCLIFE.NS","name":"HDFC Life Insurance Company Limited"},{"sym":"SBILIFE.NS","name":"SBI Life Insurance Company Limited"},{"sym":"ICICIPRULI.NS","name":"ICICI Prudential Life Insurance Company Limit"},{"sym":"GICRE.NS","name":"General Insurance Corporation of India"},{"sym":"NIACL.NS","name":"The New India Assurance Company Limited"},{"sym":"STARHEALTH.NS","name":"Star Health and Allied Insurance Company Limi"},{"sym":"LICI.NS","name":"Life Insurance Corporation Of India"}]},{"id":"amc","name":"AMC, Broking & Exchanges","icon":"\ud83d\udcc8","color":"#f97316","industries":["Asset Management","Stock Broking","Commodities","Depositories","Wealth Advisory"],"companies":[{"sym":"HDFCAMC.NS","name":"HDFC Asset Management Company Limited"},{"sym":"NAM-INDIA.NS","name":"Nippon Life India Asset Management Limited"},{"sym":"UTIAMC.NS","name":"UTI Asset Management Company Limited"},{"sym":"360ONE.NS","name":"360 ONE WAM LIMITED"},{"sym":"MOTILALOFS.NS","name":"Motilal Oswal Financial Services Limited"},{"sym":"ANGELONE.NS","name":"Angel One Limited"},{"sym":"5PAISA.NS","name":"5Paisa Capital Limited"},{"sym":"BSE.NS","name":"BSE Limited"},{"sym":"MCX.NS","name":"Multi Commodity Exchange of India Limited"},{"sym":"CDSL.NS","name":"Central Depository Services (India) Limited"},{"sym":"IIFLCAPS.NS","name":"IIFL Capital Services Limited"},{"sym":"GEOJITFSL.NS","name":"Geojit Financial Services Limited"}]},{"id":"it","name":"IT & Software","icon":"\ud83d\udcbb","color":"#3b82f6","industries":["IT Services","Software Products","BPO/ITeS","Cloud","Cybersecurity"],"companies":[{"sym":"TCS.NS","name":"Tata Consultancy Services Limited"},{"sym":"INFY.NS","name":"Infosys Limited"},{"sym":"WIPRO.NS","name":"Wipro Limited"},{"sym":"HCLTECH.NS","name":"HCL Technologies Limited"},{"sym":"TECHM.NS","name":"Tech Mahindra Limited"},{"sym":"MPHASIS.NS","name":"MphasiS Limited"},{"sym":"PERSISTENT.NS","name":"Persistent Systems Limited"},{"sym":"COFORGE.NS","name":"Coforge Limited"},{"sym":"KPITTECH.NS","name":"KPIT Technologies Limited"},{"sym":"MASTEK.NS","name":"Mastek Limited"},{"sym":"NIITLTD.NS","name":"NIIT Limited"},{"sym":"HEXT.NS","name":"Hexaware Technologies Limited"},{"sym":"NIITMTS.NS","name":"NIIT Learning Systems Limited"}]},{"id":"pharma","name":"Pharma & Bulk Drugs","icon":"\ud83d\udc8a","color":"#10b981","industries":["Formulations","Bulk Drugs","APIs","Biosimilars","CRO/CDMO"],"companies":[{"sym":"SUNPHARMA.NS","name":"Sun Pharmaceutical Industries Limited"},{"sym":"DRREDDY.NS","name":"Dr. Reddy's Laboratories Limited"},{"sym":"CIPLA.NS","name":"Cipla Limited"},{"sym":"DIVISLAB.NS","name":"Divi's Laboratories Limited"},{"sym":"LUPIN.NS","name":"Lupin Limited"},{"sym":"AUROPHARMA.NS","name":"Aurobindo Pharma Limited"},{"sym":"AJANTPHARM.NS","name":"Ajanta Pharma Limited"},{"sym":"APLLTD.NS","name":"Alembic Pharmaceuticals Limited"},{"sym":"IPCALAB.NS","name":"IPCA Laboratories Limited"},{"sym":"ALEMBICLTD.NS","name":"Alembic Limited"},{"sym":"ASTRAZEN.NS","name":"AstraZeneca Pharma India Limited"},{"sym":"GLENMARK.NS","name":"Glenmark Pharmaceuticals Limited"},{"sym":"GRANULES.NS","name":"Granules India Limited"}]},{"id":"hospital","name":"Hospitals","icon":"\ud83c\udfe5","color":"#14b8a6","industries":["Multi-specialty","Single-specialty","Oncology","Eye Care","IVF"],"companies":[{"sym":"APOLLOHOSP.NS","name":"Apollo Hospitals Enterprise Limited"},{"sym":"FORTIS.NS","name":"Fortis Healthcare Limited"},{"sym":"MAXHEALTH.NS","name":"Max Healthcare Institute Limited"},{"sym":"NH.NS","name":"Narayana Hrudayalaya Ltd."},{"sym":"ASTERDM.NS","name":"Aster DM Healthcare Limited"},{"sym":"KIMS.NS","name":"Krishna Institute of Medical Sciences Limited"},{"sym":"SHALBY.NS","name":"Shalby Limited"},{"sym":"VIJAYA.NS","name":"Vijaya Diagnostic Centre Limited"},{"sym":"AGARWALEYE.NS","name":"Dr. Agarwal's Health Care Limited"},{"sym":"DRAGARWQ.NS","name":"Dr Agarwals Eye Hospital Limited"},{"sym":"GAUDIUMIVF.NS","name":"Gaudium IVF and Women Health Limited"}]},{"id":"diagnostics","name":"Diagnostics & Labs","icon":"\ud83d\udd2c","color":"#06b6d4","industries":["Pathology","Radiology","Genetic Testing","Home Collection","Wellness"],"companies":[{"sym":"METROPOLIS.NS","name":"Metropolis Healthcare Limited"},{"sym":"LALPATHLAB.NS","name":"Dr. Lal Path Labs Ltd."},{"sym":"THYROCARE.NS","name":"Thyrocare Technologies Limited"},{"sym":"KRSNAA.NS","name":"Krsnaa Diagnostics Limited"},{"sym":"VIJAYA.NS","name":"Vijaya Diagnostic Centre Limited"}]},{"id":"paint","name":"Paints","icon":"\ud83c\udfa8","color":"#f43f5e","industries":["Decorative","Industrial","Auto Refinish","Construction Coatings","Waterproofing"],"companies":[{"sym":"ASIANPAINT.NS","name":"Asian Paints Limited"},{"sym":"BERGEPAINT.NS","name":"Berger Paints (I) Limited"},{"sym":"KANSAINER.NS","name":"Kansai Nerolac Paints Limited"},{"sym":"INDIGOPNTS.NS","name":"Indigo Paints Limited"},{"sym":"SHALPAINTS.NS","name":"Shalimar Paints Limited"},{"sym":"SIRCA.NS","name":"Sirca Paints India Limited"}]},{"id":"chem","name":"Chemicals & Specialty","icon":"\u2697\ufe0f","color":"#84cc16","industries":["Specialty Chemicals","Fluorochemicals","Agrochemicals","Dyes & Pigments","Performance Chemicals"],"companies":[{"sym":"PIDILITIND.NS","name":"Pidilite Industries Limited"},{"sym":"SRF.NS","name":"SRF Limited"},{"sym":"DEEPAKNTR.NS","name":"Deepak Nitrite Limited"},{"sym":"AARTIIND.NS","name":"Aarti Industries Limited"},{"sym":"NAVINFLUOR.NS","name":"Navin Fluorine International Limited"},{"sym":"TATACHEM.NS","name":"Tata Chemicals Limited"},{"sym":"SUDARSCHEM.NS","name":"Sudarshan Chemical Industries Limited"},{"sym":"ALKYLAMINE.NS","name":"Alkyl Amines Chemicals Limited"},{"sym":"AKSHARCHEM.NS","name":"AksharChem India Limited"},{"sym":"CHEMCON.NS","name":"Chemcon Speciality Chemicals Limited"},{"sym":"CHEMBOND.NS","name":"Chembond Material Technologies Limited"}]},{"id":"fmcg","name":"FMCG","icon":"\ud83d\uded2","color":"#f59e0b","industries":["Personal Care","Food & Beverages","Tobacco","Household Products","Dairy"],"companies":[{"sym":"HINDUNILVR.NS","name":"Hindustan Unilever Limited"},{"sym":"ITC.NS","name":"ITC Limited"},{"sym":"NESTLEIND.NS","name":"Nestle India Limited"},{"sym":"BRITANNIA.NS","name":"Britannia Industries Limited"},{"sym":"DABUR.NS","name":"Dabur India Limited"},{"sym":"GODREJCP.NS","name":"Godrej Consumer Products Limited"},{"sym":"MARICO.NS","name":"Marico Limited"},{"sym":"COLPAL.NS","name":"Colgate Palmolive (India) Limited"},{"sym":"EMAMILTD.NS","name":"Emami Limited"},{"sym":"TATACONSUM.NS","name":"TATA CONSUMER PRODUCTS LIMITED"},{"sym":"VBL.NS","name":"Varun Beverages Limited"}]},{"id":"auto","name":"Automobiles","icon":"\ud83d\ude97","color":"#f97316","industries":["Passenger Vehicles","2-Wheelers","Commercial Vehicles","EVs","Tractors"],"companies":[{"sym":"MARUTI.NS","name":"Maruti Suzuki India Limited"},{"sym":"M&M.NS","name":"Mahindra & Mahindra Limited"},{"sym":"HEROMOTOCO.NS","name":"Hero MotoCorp Limited"},{"sym":"BAJAJ-AUTO.NS","name":"Bajaj Auto Limited"},{"sym":"TVSMOTOR.NS","name":"TVS Motor Company Limited"},{"sym":"EICHERMOT.NS","name":"Eicher Motors Limited"},{"sym":"ASHOKLEY.NS","name":"Ashok Leyland Limited"},{"sym":"OLECTRA.NS","name":"Olectra Greentech Limited"},{"sym":"FORCEMOT.NS","name":"FORCE MOTORS LTD"},{"sym":"ESCORTS.NS","name":"Escorts Kubota Limited"}]},{"id":"auto_anc","name":"Auto Ancillaries","icon":"\u2699\ufe0f","color":"#6b7280","industries":["Tyres","Engine Parts","Electrical Systems","Exhaust Systems","Fasteners"],"companies":[{"sym":"BOSCHLTD.NS","name":"Bosch Limited"},{"sym":"MOTHERSON.NS","name":"Samvardhana Motherson International Limited"},{"sym":"EXIDEIND.NS","name":"Exide Industries Limited"},{"sym":"APOLLOTYRE.NS","name":"Apollo Tyres Limited"},{"sym":"MRF.NS","name":"MRF Limited"},{"sym":"BALKRISIND.NS","name":"Balkrishna Industries Limited"},{"sym":"SUNDRMFAST.NS","name":"Sundram Fasteners Limited"},{"sym":"ENDURANCE.NS","name":"Endurance Technologies Limited"},{"sym":"SUBROS.NS","name":"Subros Limited"},{"sym":"MSUMI.NS","name":"Motherson Sumi Wiring India Limited"}]},{"id":"steel","name":"Steel & Metals","icon":"\ud83d\udd29","color":"#9ca3af","industries":["Flat Steel","Long Steel","Stainless Steel","Aluminium","Copper"],"companies":[{"sym":"TATASTEEL.NS","name":"Tata Steel Limited"},{"sym":"JSWSTEEL.NS","name":"JSW Steel Limited"},{"sym":"HINDALCO.NS","name":"Hindalco Industries Limited"},{"sym":"VEDL.NS","name":"Devanta Limited"},{"sym":"SAIL.NS","name":"Steel Authority of India Limited"},{"sym":"NMDC.NS","name":"NMDC Limited"},{"sym":"APLAPOLLO.NS","name":"APL Apollo Tubes Limited"},{"sym":"RATNAMANI.NS","name":"Ratnamani Metals & Tubes Limited"},{"sym":"JSL.NS","name":"Jindal Stainless Limited"},{"sym":"HINDCOPPER.NS","name":"Hindustan Copper Limited"},{"sym":"NATIONALUM.NS","name":"National Aluminium Company Limited"},{"sym":"JINDALSTEL.NS","name":"JINDAL STEEL LIMITED"}]},{"id":"cement","name":"Cement","icon":"\ud83c\udfd7\ufe0f","color":"#78716c","industries":["OPC","PPC","Blended Cement","RMC","Clinker"],"companies":[{"sym":"ULTRACEMCO.NS","name":"UltraTech Cement Limited"},{"sym":"AMBUJACEM.NS","name":"Ambuja Cements Limited"},{"sym":"ACC.NS","name":"ACC Limited"},{"sym":"SHREECEM.NS","name":"SHREE CEMENT LIMITED"},{"sym":"RAMCOCEM.NS","name":"The Ramco Cements Limited"},{"sym":"JKCEMENT.NS","name":"JK Cement Limited"},{"sym":"JKLAKSHMI.NS","name":"JK Lakshmi Cement Limited"},{"sym":"ORIENTCEM.NS","name":"Orient Cement Limited"},{"sym":"JSWCEMENT.NS","name":"JSW Cement Limited"},{"sym":"HEIDELBERG.NS","name":"HeidelbergCement India Limited"},{"sym":"INDIACEM.NS","name":"The India Cements Limited"},{"sym":"DECCANCE.NS","name":"Deccan Cements Limited"}]},{"id":"realty","name":"Real Estate","icon":"\ud83c\udfe2","color":"#ec4899","industries":["Residential","Commercial","Retail/Malls","REITs","Affordable Housing"],"companies":[{"sym":"DLF.NS","name":"DLF Limited"},{"sym":"GODREJPROP.NS","name":"Godrej Properties Limited"},{"sym":"OBEROIRLTY.NS","name":"Oberoi Realty Limited"},{"sym":"PRESTIGE.NS","name":"Prestige Estates Projects Limited"},{"sym":"PHOENIXLTD.NS","name":"The Phoenix Mills Limited"},{"sym":"LODHA.NS","name":"Lodha Developers Limited"},{"sym":"BRIGADE.NS","name":"Brigade Enterprises Limited"},{"sym":"SOBHA.NS","name":"Sobha Limited"},{"sym":"KOLTEPATIL.NS","name":"Kolte - Patil Developers Limited"},{"sym":"MAHLIFE.NS","name":"Mahindra Lifespace Developers Limited"},{"sym":"AJMERA.NS","name":"Ajmera Realty & Infra India Limited"}]},{"id":"infra","name":"Infrastructure","icon":"\ud83c\udf09","color":"#22d3ee","industries":["Roads","Bridges","Ports","Airports","Smart Cities"],"companies":[{"sym":"LT.NS","name":"Larsen & Toubro Limited"},{"sym":"ADANIPORTS.NS","name":"Adani Ports and Special Economic Zone Limited"},{"sym":"GMRAIRPORT.NS","name":"GMR AIRPORTS LIMITED"},{"sym":"IRB.NS","name":"IRB Infrastructure Developers Limited"},{"sym":"NCC.NS","name":"NCC Limited"},{"sym":"ASHOKA.NS","name":"Ashoka Buildcon Limited"},{"sym":"IRCON.NS","name":"Ircon International Limited"},{"sym":"KNRCON.NS","name":"KNR Constructions Limited"},{"sym":"PNCINFRA.NS","name":"PNC Infratech Limited"}]},{"id":"railway","name":"Railways","icon":"\ud83d\ude82","color":"#a78bfa","industries":["Wagons","Locos","EPC","Finance","Tourism/Ticketing"],"companies":[{"sym":"RVNL.NS","name":"Rail Vikas Nigam Limited"},{"sym":"IRFC.NS","name":"Indian Railway Finance Corporation Limited"},{"sym":"IRCTC.NS","name":"Indian Railway Catering And Tourism Corporati"},{"sym":"RAILTEL.NS","name":"Railtel Corporation Of India Limited"},{"sym":"IRCON.NS","name":"Ircon International Limited"},{"sym":"TITAGARH.NS","name":"TITAGARH RAIL SYSTEMS LIMITED"},{"sym":"TEXRAIL.NS","name":"Texmaco Rail & Engineering Limited"},{"sym":"JWL.NS","name":"Jupiter Wagons Limited"},{"sym":"BEML.NS","name":"BEML Limited"}]},{"id":"power","name":"Power & Renewables","icon":"\u26a1","color":"#fbbf24","industries":["Thermal","Hydro","Solar","Wind","Power Finance"],"companies":[{"sym":"NTPC.NS","name":"NTPC Limited"},{"sym":"POWERGRID.NS","name":"Power Grid Corporation of India Limited"},{"sym":"ADANIGREEN.NS","name":"Adani Green Energy Limited"},{"sym":"ADANIPOWER.NS","name":"Adani Power Limited"},{"sym":"TATAPOWER.NS","name":"Tata Power Company Limited"},{"sym":"TORNTPOWER.NS","name":"Torrent Power Limited"},{"sym":"CESC.NS","name":"CESC Limited"},{"sym":"NHPC.NS","name":"NHPC Limited"},{"sym":"SJVN.NS","name":"SJVN Limited"},{"sym":"JSWENERGY.NS","name":"JSW Energy Limited"},{"sym":"RPOWER.NS","name":"Reliance Power Limited"},{"sym":"NTPCGREEN.NS","name":"NTPC Green Energy Limited"},{"sym":"INOXWIND.NS","name":"Inox Wind Limited"},{"sym":"IREDA.NS","name":"Indian Renewable Energy Development Agency Li"}]},{"id":"oil","name":"Oil & Gas","icon":"\ud83d\udee2\ufe0f","color":"#d97706","industries":["Exploration","Refining","Gas Distribution","Lubricants","Pipelines"],"companies":[{"sym":"RELIANCE.NS","name":"Reliance Industries Limited"},{"sym":"ONGC.NS","name":"Oil & Natural Gas Corporation Limited"},{"sym":"BPCL.NS","name":"Bharat Petroleum Corporation Limited"},{"sym":"IOC.NS","name":"Indian Oil Corporation Limited"},{"sym":"GAIL.NS","name":"GAIL (India) Limited"},{"sym":"OIL.NS","name":"Oil India Limited"},{"sym":"MRPL.NS","name":"Mangalore Refinery and Petrochemicals Limited"},{"sym":"PETRONET.NS","name":"Petronet LNG Limited"},{"sym":"GULFOILLUB.NS","name":"Gulf Oil Lubricants India Limited"}]},{"id":"pse","name":"PSU / PSE Enterprises","icon":"\ud83c\udfdb\ufe0f","color":"#64748b","industries":["Heavy Electricals","Coal","Minerals","Housing Finance","FIs"],"companies":[{"sym":"BHEL.NS","name":"Bharat Heavy Electricals Limited"},{"sym":"COALINDIA.NS","name":"Coal India Limited"},{"sym":"SAIL.NS","name":"Steel Authority of India Limited"},{"sym":"NBCC.NS","name":"NBCC (India) Limited"},{"sym":"HUDCO.NS","name":"Housing & Urban Development Corporation Limit"},{"sym":"MOIL.NS","name":"MOIL Limited"},{"sym":"PFC.NS","name":"Power Finance Corporation Limited"},{"sym":"RECLTD.NS","name":"REC Limited"},{"sym":"IREDA.NS","name":"Indian Renewable Energy Development Agency Li"},{"sym":"NMDC.NS","name":"NMDC Limited"},{"sym":"NLCINDIA.NS","name":"NLC India Limited"}]},{"id":"telecom","name":"Telecom","icon":"\ud83d\udce1","color":"#0ea5e9","industries":["Mobile Services","Broadband","Optical Fibre","Tower","Enterprise"],"companies":[{"sym":"BHARTIARTL.NS","name":"Bharti Airtel Limited"},{"sym":"IDEA.NS","name":"Vodafone Idea Limited"},{"sym":"TTML.NS","name":"Tata Teleservices (Maharashtra) Limited"},{"sym":"HFCL.NS","name":"HFCL Limited"},{"sym":"STLTECH.NS","name":"Sterlite Technologies Limited"},{"sym":"TEJASNET.NS","name":"Tejas Networks Limited"},{"sym":"ITI.NS","name":"ITI Limited"},{"sym":"SIGACHI.NS","name":"Sigachi Industries Limited"}]},{"id":"consumer_dur","name":"Consumer Durables","icon":"\ud83d\udcfa","color":"#0891b2","industries":["Home Appliances","AC & Cooling","Wearables","Lighting","Kitchen Appliances"],"companies":[{"sym":"HAVELLS.NS","name":"Havells India Limited"},{"sym":"VOLTAS.NS","name":"Voltas Limited"},{"sym":"TITAN.NS","name":"Titan Company Limited"},{"sym":"WHIRLPOOL.NS","name":"Whirlpool of India Limited"},{"sym":"BLUESTARCO.NS","name":"Blue Star Limited"},{"sym":"CROMPTON.NS","name":"Crompton Greaves Consumer Electricals Limited"},{"sym":"VGUARD.NS","name":"V-Guard Industries Limited"},{"sym":"POLYCAB.NS","name":"Polycab India Limited"},{"sym":"DIXON.NS","name":"Dixon Technologies (India) Limited"},{"sym":"AMBER.NS","name":"Amber Enterprises India Limited"},{"sym":"BAJAJELEC.NS","name":"Bajaj Electricals Limited"}]},{"id":"cables","name":"Cables & Wires","icon":"\ud83d\udd0c","color":"#7c3aed","industries":["Power Cables","Data Cables","Optical Fibre","Wiring Devices","Switchgear"],"companies":[{"sym":"POLYCAB.NS","name":"Polycab India Limited"},{"sym":"KEI.NS","name":"KEI Industries Limited"},{"sym":"HAVELLS.NS","name":"Havells India Limited"},{"sym":"FINCABLES.NS","name":"Finolex Cables Limited"},{"sym":"STLTECH.NS","name":"Sterlite Technologies Limited"},{"sym(--vguard-tag-fix)":"V-Guard Industries Limited"},{"sym":"SUPREMEIND.NS","name":"Supreme Industries Limited"},{"sym":"FIEMIND.NS","name":"Fiem Industries Limited"}]},{"id":"logistics","name":"Logistics & Shipping","icon":"\ud83d\udea2","color":"#0369a1","industries":["Express Logistics","Container Ports","Cold Chain","Freight","3PL"],"companies":[{"sym":"CONCOR.NS","name":"Container Corporation of India Limited"},{"sym":"DELHIVERY.NS","name":"Delhivery Limited"},{"sym":"BLUEDART.NS","name":"Blue Dart Express Limited"},{"sym":"MAHLOG.NS","name":"Mahindra Logistics Limited"},{"sym":"TVSSCS.NS","name":"TVS Supply Chain Solutions Limited"},{"sym":"ALLCARGO.NS","name":"Allcargo Logistics Limited"},{"sym":"SOTL.NS","name":"Savita Oil Technologies Limited"},{"sym":"SCI.NS","name":"Shipping Corporation Of India Limited"}]},{"id":"aviation","name":"Aviation & Airports","icon":"\u2708\ufe0f","color":"#2563eb","industries":["Airlines","Ground Handling","MRO","Airports","Cargo"],"companies":[{"sym":"INDIGO.NS","name":"InterGlobe Aviation Limited"},{"sym":"GMRAIRPORT.NS","name":"GMR AIRPORTS LIMITED"},{"sym":"GMRP&UI.NS","name":"GMR Power and Urban Infra Limited"},{"sym":"BLUEDART.NS","name":"Blue Dart Express Limited"}]},{"id":"media","name":"Media & Entertainment","icon":"\ud83d\udcfd\ufe0f","color":"#db2777","industries":["Broadcasting","OTT","Music","Films","Multiplexes"],"companies":[{"sym":"SUNTV.NS","name":"Sun TV Network Limited"},{"sym":"ZEEL.NS","name":"Zee Entertainment Enterprises Limited"},{"sym":"PVRINOX.NS","name":"PVR INOX Limited"},{"sym":"NETWORK18.NS","name":"Network18 Media & Investments Limited"},{"sym":"NAZARA.NS","name":"Nazara Technologies Limited"},{"sym":"SAREGAMA.NS","name":"Saregama India Limited"},{"sym":"TIPSMUSIC.NS","name":"Tips Music Limited"},{"sym":"IMFA.NS","name":"Indian Metals & Ferro Alloys Limited"}]},{"id":"hospitality","name":"Hotels & Hospitality","icon":"\ud83c\udfe8","color":"#be185d","industries":["Luxury Hotels","Budget Hotels","Resorts","Restaurant Chains","Tourism"],"companies":[{"sym":"INDHOTEL.NS","name":"The Indian Hotels Company Limited"},{"sym":"EIHOTEL.NS","name":"EIH Limited"},{"sym":"ITCHOTELS.NS","name":"ITC Hotels Limited"},{"sym":"CHALET.NS","name":"Chalet Hotels Limited"},{"sym":"LEMONTREE.NS","name":"Lemon Tree Hotels Limited"},{"sym":"TAJGVK.NS","name":"Taj GVK Hotels & Resorts Limited"},{"sym":"ADVANIHOTR.NS","name":"Advani Hotels & Resorts (India) Limited"},{"sym":"BRIGHOTEL.NS","name":"Brigade Hotel Ventures Limited"}]},{"id":"jewellery","name":"Jewellery & Retail","icon":"\ud83d\udc8e","color":"#d97706","industries":["Gold Jewellery","Diamond","Organised Retail","Lifestyle","Watches"],"companies":[{"sym":"TITAN.NS","name":"Titan Company Limited"},{"sym":"KALYANKJIL.NS","name":"Kalyan Jewellers India Limited"},{"sym":"SENCO.NS","name":"Senco Gold Limited"},{"sym":"PCJEWELLER.NS","name":"PC Jeweller Limited"},{"sym":"RAJESHEXPO.NS","name":"Rajesh Exports Limited"},{"sym":"TBZ.NS","name":"Tribhovandas Bhimji Zaveri Limited"},{"sym":"THANGAMAYL.NS","name":"Thangamayil Jewellery Limited"},{"sym":"PNGJL.NS","name":"P N Gadgil Jewellers Limited"}]},{"id":"textiles","name":"Textiles & Garments","icon":"\ud83d\udc58","color":"#9333ea","industries":["Cotton Yarn","Man-Made Fibre","Garments","Technical Textiles","Home Textiles"],"companies":[{"sym":"RAYMOND.NS","name":"Raymond Limited"},{"sym":"ARVIND.NS","name":"Arvind Limited"},{"sym":"TRIDENT.NS","name":"Trident Limited"},{"sym":"HIMATSEIDE.NS","name":"Himatsingka Seide Limited"},{"sym":"KITEX.NS","name":"Kitex Garments Limited"},{"sym":"NITINSPIN.NS","name":"Nitin Spinners Limited"},{"sym":"BOMDYEING.NS","name":"Bombay Dyeing & Mfg Company Limited"},{"sym":"GRASIM.NS","name":"Grasim Industries Limited"},{"sym":"SOMANYCERA.NS","name":"Somany Ceramics Limited"}]},{"id":"agri","name":"Agri & Fertilisers","icon":"\ud83c\udf3e","color":"#65a30d","industries":["Fertilisers","Pesticides","Seeds","Crop Protection","Agri Input"],"companies":[{"sym":"COROMANDEL.NS","name":"Coromandel International Limited"},{"sym":"CHAMBLFERT.NS","name":"Chambal Fertilizers & Chemicals Limited"},{"sym":"GSFC.NS","name":"Gujarat State Fertilizers & Chemicals Limited"},{"sym":"RCF.NS","name":"Rashtriya Chemicals and Fertilizers Limited"},{"sym":"NFL.NS","name":"National Fertilizers Limited"},{"sym":"PIIND.NS","name":"PI Industries Limited"},{"sym":"DHANUKA.NS","name":"Dhanuka Agritech Limited"},{"sym":"GODREJAGRO.NS","name":"Godrej Agrovet Limited"},{"sym":"BAYERCROP.NS","name":"Bayer Cropscience Limited"},{"sym":"ZUARI.NS","name":"Zuari Agro Chemicals Limited"},{"sym":"RALLIS.NS","name":"Rallis India Limited"}]}];
+const SECTORS = [{"id":"defence_pvt","name":"Defence \u2014 Private","icon":"\ud83d\udee1\ufe0f","color":"#3b82f6","industries":["Drones","Electronics","Missiles","Systems Integration","Ship Building"],"companies":[{"sym":"ASTRAMICRO.NS","name":"Astra Microwave Products Limited"},{"sym":"APOLLO.NS","name":"Apollo Micro Systems Limited"},{"sym":"DATAPATTNS.NS","name":"Data Patterns (India) Limited"},{"sym":"IDEAFORGE.NS","name":"Ideaforge Technology Limited"},{"sym":"ZENTEC.NS","name":"Zen Technologies Limited"},{"sym":"PARAS.NS","name":"Paras Defence and Space Technologies Limited"},{"sym":"SWANDEF.NS","name":"Swan Defence and Heavy Industries Limited"},{"sym":"SIKA.NS","name":"Sika Interplant Systems Limited"},{"sym":"MIDHANI.NS","name":"Mishra Dhatu Nigam Limited"},{"sym":"BDL.NS","name":"Bharat Dynamics Limited"},{"sym":"MTARTECH.NS","name":"Mtar Technologies Limited"}]},{"id":"defence_psu","name":"Defence \u2014 PSU","icon":"\u2694\ufe0f","color":"#1d4ed8","industries":["Aerospace","Electronics","Shipbuilding","Ammunition","Vehicles"],"companies":[{"sym":"HAL.NS","name":"Hindustan Aeronautics Limited"},{"sym":"BEL.NS","name":"Bharat Electronics Limited"},{"sym":"BEML.NS","name":"BEML Limited"},{"sym":"BDL.NS","name":"Bharat Dynamics Limited"},{"sym":"GRSE.NS","name":"Garden Reach Shipbuilders & Engineers Limited"},{"sym":"COCHINSHIP.NS","name":"Cochin Shipyard Limited"},{"sym":"MAZDOCK.NS","name":"Mazagon Dock Shipbuilders Limited"},{"sym":"MIDHANI.NS","name":"Mishra Dhatu Nigam Limited"},{"sym":"ITI.NS","name":"ITI Limited"}]},{"id":"psu_bank","name":"PSU Banks","icon":"\ud83c\udfe6","color":"#f59e0b","industries":["Retail Banking","Corporate Lending","Agriculture Credit","MSME","Trade Finance"],"companies":[{"sym":"SBIN.NS","name":"State Bank of India"},{"sym":"BANKBARODA.NS","name":"Bank of Baroda"},{"sym":"BANKINDIA.NS","name":"Bank of India"},{"sym":"CANBK.NS","name":"Canara Bank"},{"sym":"PNB.NS","name":"Punjab National Bank"},{"sym":"UNIONBANK.NS","name":"Union Bank of India"},{"sym":"UCOBANK.NS","name":"UCO Bank"},{"sym":"CENTRALBK.NS","name":"Central Bank of India"},{"sym":"MAHABANK.NS","name":"Bank of Maharashtra"},{"sym":"INDIANB.NS","name":"Indian Bank"}]},{"id":"pvt_bank","name":"Private Banks","icon":"\ud83c\udfdb\ufe0f","color":"#06b6d4","industries":["Retail Banking","Wealth Mgmt","Credit Cards","Home Loans","Digital Banking"],"companies":[{"sym":"HDFCBANK.NS","name":"HDFC Bank Limited"},{"sym":"ICICIBANK.NS","name":"ICICI Bank Limited"},{"sym":"AXISBANK.NS","name":"Axis Bank Limited"},{"sym":"KOTAKBANK.NS","name":"Kotak Mahindra Bank Limited"},{"sym":"INDUSINDBK.NS","name":"IndusInd Bank Limited"},{"sym":"FEDERALBNK.NS","name":"The Federal Bank  Limited"},{"sym":"IDFCFIRSTB.NS","name":"IDFC First Bank Limited"},{"sym":"YESBANK.NS","name":"Yes Bank Limited"},{"sym":"RBLBANK.NS","name":"RBL Bank Limited"},{"sym":"DCBBANK.NS","name":"DCB Bank Limited"},{"sym":"CSBBANK.NS","name":"CSB Bank Limited"},{"sym":"KTKBANK.NS","name":"The Karnataka Bank Limited"}]},{"id":"sfb","name":"Small Finance Banks","icon":"\ud83c\udfe7","color":"#8b5cf6","industries":["Microfinance","SME Loans","Savings Accounts","Rural Credit","MSME"],"companies":[{"sym":"AUBANK.NS","name":"AU Small Finance Bank Limited"},{"sym":"CAPITALSFB.NS","name":"Capital Small Finance Bank Limited"},{"sym":"EQUITASBNK.NS","name":"Equitas Small Finance Bank Limited"},{"sym":"ESAFSFB.NS","name":"ESAF Small Finance Bank Limited"},{"sym":"SURYODAY.NS","name":"Suryoday Small Finance Bank Limited"},{"sym":"UJJIVANSFB.NS","name":"Ujjivan Small Finance Bank Limited"},{"sym":"UTKARSHBNK.NS","name":"Utkarsh Small Finance Bank Limited"},{"sym":"JSFB.NS","name":"Jana Small Finance Bank Limited"}]},{"id":"nbfc","name":"NBFCs & Microfinance","icon":"\ud83d\udcb3","color":"#a855f7","industries":["Consumer Loans","Gold Loans","Vehicle Finance","Micro-credit","Housing Finance"],"companies":[{"sym":"BAJFINANCE.NS","name":"Bajaj Finance Limited"},{"sym":"BAJAJFINSV.NS","name":"Bajaj Finserv Limited"},{"sym":"MUTHOOTFIN.NS","name":"Muthoot Finance Limited"},{"sym":"SHRIRAMFIN.NS","name":"Shriram Finance Limited"},{"sym":"MANAPPURAM.NS","name":"Manappuram Finance Limited"},{"sym":"CHOLAFIN.NS","name":"Cholamandalam Investment and Finance Company "},{"sym":"M&MFIN.NS","name":"Mahindra & Mahindra Financial Services Limite"},{"sym":"POONAWALLA.NS","name":"Poonawalla Fincorp Limited"},{"sym":"CREDITACC.NS","name":"CREDITACCESS GRAMEEN LIMITED"},{"sym":"SPANDANA.NS","name":"Spandana Sphoorty Financial Limited"},{"sym":"SATIN.NS","name":"Satin Creditcare Network Limited"},{"sym":"FUSION.NS","name":"Fusion Finance Limited"}]},{"id":"insurance","name":"Insurance","icon":"\ud83d\udee1\ufe0f","color":"#ec4899","industries":["Life Insurance","General Insurance","Health Insurance","Reinsurance","Crop Insurance"],"companies":[{"sym":"HDFCLIFE.NS","name":"HDFC Life Insurance Company Limited"},{"sym":"SBILIFE.NS","name":"SBI Life Insurance Company Limited"},{"sym":"ICICIPRULI.NS","name":"ICICI Prudential Life Insurance Company Limit"},{"sym":"GICRE.NS","name":"General Insurance Corporation of India"},{"sym":"NIACL.NS","name":"The New India Assurance Company Limited"},{"sym":"STARHEALTH.NS","name":"Star Health and Allied Insurance Company Limi"},{"sym":"LICI.NS","name":"Life Insurance Corporation Of India"}]},{"id":"amc","name":"AMC, Broking & Exchanges","icon":"\ud83d\udcc8","color":"#f97316","industries":["Asset Management","Stock Broking","Commodities","Depositories","Wealth Advisory"],"companies":[{"sym":"HDFCAMC.NS","name":"HDFC Asset Management Company Limited"},{"sym":"NAM-INDIA.NS","name":"Nippon Life India Asset Management Limited"},{"sym":"UTIAMC.NS","name":"UTI Asset Management Company Limited"},{"sym":"360ONE.NS","name":"360 ONE WAM LIMITED"},{"sym":"MOTILALOFS.NS","name":"Motilal Oswal Financial Services Limited"},{"sym":"ANGELONE.NS","name":"Angel One Limited"},{"sym":"5PAISA.NS","name":"5Paisa Capital Limited"},{"sym":"BSE.NS","name":"BSE Limited"},{"sym":"MCX.NS","name":"Multi Commodity Exchange of India Limited"},{"sym":"CDSL.NS","name":"Central Depository Services (India) Limited"},{"sym":"IIFLCAPS.NS","name":"IIFL Capital Services Limited"},{"sym":"GEOJITFSL.NS","name":"Geojit Financial Services Limited"}]},{"id":"it","name":"IT & Software","icon":"\ud83d\udcbb","color":"#3b82f6","industries":["IT Services","Software Products","BPO/ITeS","Cloud","Cybersecurity"],"companies":[{"sym":"TCS.NS","name":"Tata Consultancy Services Limited"},{"sym":"INFY.NS","name":"Infosys Limited"},{"sym":"WIPRO.NS","name":"Wipro Limited"},{"sym":"HCLTECH.NS","name":"HCL Technologies Limited"},{"sym":"TECHM.NS","name":"Tech Mahindra Limited"},{"sym":"MPHASIS.NS","name":"MphasiS Limited"},{"sym":"PERSISTENT.NS","name":"Persistent Systems Limited"},{"sym":"COFORGE.NS","name":"Coforge Limited"},{"sym":"KPITTECH.NS","name":"KPIT Technologies Limited"},{"sym":"MASTEK.NS","name":"Mastek Limited"},{"sym":"NIITLTD.NS","name":"NIIT Limited"},{"sym":"HEXT.NS","name":"Hexaware Technologies Limited"},{"sym":"NIITMTS.NS","name":"NIIT Learning Systems Limited"}]},{"id":"pharma","name":"Pharma & Bulk Drugs","icon":"\ud83d\udc8a","color":"#10b981","industries":["Formulations","Bulk Drugs","APIs","Biosimilars","CRO/CDMO"],"companies":[{"sym":"SUNPHARMA.NS","name":"Sun Pharmaceutical Industries Limited"},{"sym":"DRREDDY.NS","name":"Dr. Reddy's Laboratories Limited"},{"sym":"CIPLA.NS","name":"Cipla Limited"},{"sym":"DIVISLAB.NS","name":"Divi's Laboratories Limited"},{"sym":"LUPIN.NS","name":"Lupin Limited"},{"sym":"AUROPHARMA.NS","name":"Aurobindo Pharma Limited"},{"sym":"AJANTPHARM.NS","name":"Ajanta Pharma Limited"},{"sym":"APLLTD.NS","name":"Alembic Pharmaceuticals Limited"},{"sym":"IPCALAB.NS","name":"IPCA Laboratories Limited"},{"sym":"ALEMBICLTD.NS","name":"Alembic Limited"},{"sym":"ASTRAZEN.NS","name":"AstraZeneca Pharma India Limited"},{"sym":"GLENMARK.NS","name":"Glenmark Pharmaceuticals Limited"},{"sym":"GRANULES.NS","name":"Granules India Limited"}]},{"id":"hospital","name":"Hospitals","icon":"\ud83c\udfe5","color":"#14b8a6","industries":["Multi-specialty","Single-specialty","Oncology","Eye Care","IVF"],"companies":[{"sym":"APOLLOHOSP.NS","name":"Apollo Hospitals Enterprise Limited"},{"sym":"FORTIS.NS","name":"Fortis Healthcare Limited"},{"sym":"MAXHEALTH.NS","name":"Max Healthcare Institute Limited"},{"sym":"NH.NS","name":"Narayana Hrudayalaya Ltd."},{"sym":"ASTERDM.NS","name":"Aster DM Healthcare Limited"},{"sym":"KIMS.NS","name":"Krishna Institute of Medical Sciences Limited"},{"sym":"SHALBY.NS","name":"Shalby Limited"},{"sym":"VIJAYA.NS","name":"Vijaya Diagnostic Centre Limited"},{"sym":"AGARWALEYE.NS","name":"Dr. Agarwal's Health Care Limited"},{"sym":"DRAGARWQ.NS","name":"Dr Agarwals Eye Hospital Limited"},{"sym":"GAUDIUMIVF.NS","name":"Gaudium IVF and Women Health Limited"}]},{"id":"diagnostics","name":"Diagnostics & Labs","icon":"\ud83d\udd2c","color":"#06b6d4","industries":["Pathology","Radiology","Genetic Testing","Home Collection","Wellness"],"companies":[{"sym":"METROPOLIS.NS","name":"Metropolis Healthcare Limited"},{"sym":"LALPATHLAB.NS","name":"Dr. Lal Path Labs Ltd."},{"sym":"THYROCARE.NS","name":"Thyrocare Technologies Limited"},{"sym":"KRSNAA.NS","name":"Krsnaa Diagnostics Limited"},{"sym":"VIJAYA.NS","name":"Vijaya Diagnostic Centre Limited"}]},{"id":"paint","name":"Paints","icon":"\ud83c\udfa8","color":"#f43f5e","industries":["Decorative","Industrial","Auto Refinish","Construction Coatings","Waterproofing"],"companies":[{"sym":"ASIANPAINT.NS","name":"Asian Paints Limited"},{"sym":"BERGEPAINT.NS","name":"Berger Paints (I) Limited"},{"sym":"KANSAINER.NS","name":"Kansai Nerolac Paints Limited"},{"sym":"INDIGOPNTS.NS","name":"Indigo Paints Limited"},{"sym":"SHALPAINTS.NS","name":"Shalimar Paints Limited"},{"sym":"SIRCA.NS","name":"Sirca Paints India Limited"}]},{"id":"chem","name":"Chemicals & Specialty","icon":"\u2697\ufe0f","color":"#84cc16","industries":["Specialty Chemicals","Fluorochemicals","Agrochemicals","Dyes & Pigments","Performance Chemicals"],"companies":[{"sym":"PIDILITIND.NS","name":"Pidilite Industries Limited"},{"sym":"SRF.NS","name":"SRF Limited"},{"sym":"DEEPAKNTR.NS","name":"Deepak Nitrite Limited"},{"sym":"AARTIIND.NS","name":"Aarti Industries Limited"},{"sym":"NAVINFLUOR.NS","name":"Navin Fluorine International Limited"},{"sym":"TATACHEM.NS","name":"Tata Chemicals Limited"},{"sym":"SUDARSCHEM.NS","name":"Sudarshan Chemical Industries Limited"},{"sym":"ALKYLAMINE.NS","name":"Alkyl Amines Chemicals Limited"},{"sym":"AKSHARCHEM.NS","name":"AksharChem India Limited"},{"sym":"CHEMCON.NS","name":"Chemcon Speciality Chemicals Limited"},{"sym":"CHEMBOND.NS","name":"Chembond Material Technologies Limited"}]},{"id":"fmcg","name":"FMCG","icon":"\ud83d\uded2","color":"#f59e0b","industries":["Personal Care","Food & Beverages","Tobacco","Household Products","Dairy"],"companies":[{"sym":"HINDUNILVR.NS","name":"Hindustan Unilever Limited"},{"sym":"ITC.NS","name":"ITC Limited"},{"sym":"NESTLEIND.NS","name":"Nestle India Limited"},{"sym":"BRITANNIA.NS","name":"Britannia Industries Limited"},{"sym":"DABUR.NS","name":"Dabur India Limited"},{"sym":"GODREJCP.NS","name":"Godrej Consumer Products Limited"},{"sym":"MARICO.NS","name":"Marico Limited"},{"sym":"COLPAL.NS","name":"Colgate Palmolive (India) Limited"},{"sym":"EMAMILTD.NS","name":"Emami Limited"},{"sym":"TATACONSUM.NS","name":"TATA CONSUMER PRODUCTS LIMITED"},{"sym":"VBL.NS","name":"Varun Beverages Limited"}]},{"id":"auto","name":"Automobiles","icon":"\ud83d\ude97","color":"#f97316","industries":["Passenger Vehicles","2-Wheelers","Commercial Vehicles","EVs","Tractors"],"companies":[{"sym":"MARUTI.NS","name":"Maruti Suzuki India Limited"},{"sym":"M&M.NS","name":"Mahindra & Mahindra Limited"},{"sym":"HEROMOTOCO.NS","name":"Hero MotoCorp Limited"},{"sym":"BAJAJ-AUTO.NS","name":"Bajaj Auto Limited"},{"sym":"TVSMOTOR.NS","name":"TVS Motor Company Limited"},{"sym":"EICHERMOT.NS","name":"Eicher Motors Limited"},{"sym":"ASHOKLEY.NS","name":"Ashok Leyland Limited"},{"sym":"OLECTRA.NS","name":"Olectra Greentech Limited"},{"sym":"FORCEMOT.NS","name":"FORCE MOTORS LTD"},{"sym":"ESCORTS.NS","name":"Escorts Kubota Limited"}]},{"id":"auto_anc","name":"Auto Ancillaries","icon":"\u2699\ufe0f","color":"#6b7280","industries":["Tyres","Engine Parts","Electrical Systems","Exhaust Systems","Fasteners"],"companies":[{"sym":"BOSCHLTD.NS","name":"Bosch Limited"},{"sym":"MOTHERSON.NS","name":"Samvardhana Motherson International Limited"},{"sym":"EXIDEIND.NS","name":"Exide Industries Limited"},{"sym":"APOLLOTYRE.NS","name":"Apollo Tyres Limited"},{"sym":"MRF.NS","name":"MRF Limited"},{"sym":"BALKRISIND.NS","name":"Balkrishna Industries Limited"},{"sym":"SUNDRMFAST.NS","name":"Sundram Fasteners Limited"},{"sym":"ENDURANCE.NS","name":"Endurance Technologies Limited"},{"sym":"SUBROS.NS","name":"Subros Limited"},{"sym":"MSUMI.NS","name":"Motherson Sumi Wiring India Limited"}]},{"id":"steel","name":"Steel & Metals","icon":"\ud83d\udd29","color":"#9ca3af","industries":["Flat Steel","Long Steel","Stainless Steel","Aluminium","Copper"],"companies":[{"sym":"TATASTEEL.NS","name":"Tata Steel Limited"},{"sym":"JSWSTEEL.NS","name":"JSW Steel Limited"},{"sym":"HINDALCO.NS","name":"Hindalco Industries Limited"},{"sym":"VEDL.NS","name":"Vedanta Limited"},{"sym":"SAIL.NS","name":"Steel Authority of India Limited"},{"sym":"NMDC.NS","name":"NMDC Limited"},{"sym":"APLAPOLLO.NS","name":"APL Apollo Tubes Limited"},{"sym":"RATNAMANI.NS","name":"Ratnamani Metals & Tubes Limited"},{"sym":"JSL.NS","name":"Jindal Stainless Limited"},{"sym":"HINDCOPPER.NS","name":"Hindustan Copper Limited"},{"sym":"NATIONALUM.NS","name":"National Aluminium Company Limited"},{"sym":"JINDALSTEL.NS","name":"JINDAL STEEL LIMITED"}]},{"id":"cement","name":"Cement","icon":"\ud83c\udfd7\ufe0f","color":"#78716c","industries":["OPC","PPC","Blended Cement","RMC","Clinker"],"companies":[{"sym":"ULTRACEMCO.NS","name":"UltraTech Cement Limited"},{"sym":"AMBUJACEM.NS","name":"Ambuja Cements Limited"},{"sym":"ACC.NS","name":"ACC Limited"},{"sym":"SHREECEM.NS","name":"SHREE CEMENT LIMITED"},{"sym":"RAMCOCEM.NS","name":"The Ramco Cements Limited"},{"sym":"JKCEMENT.NS","name":"JK Cement Limited"},{"sym":"JKLAKSHMI.NS","name":"JK Lakshmi Cement Limited"},{"sym":"ORIENTCEM.NS","name":"Orient Cement Limited"},{"sym":"JSWCEMENT.NS","name":"JSW Cement Limited"},{"sym":"HEIDELBERG.NS","name":"HeidelbergCement India Limited"},{"sym":"INDIACEM.NS","name":"The India Cements Limited"},{"sym":"DECCANCE.NS","name":"Deccan Cements Limited"}]},{"id":"realty","name":"Real Estate","icon":"\ud83c\udfe2","color":"#ec4899","industries":["Residential","Commercial","Retail/Malls","REITs","Affordable Housing"],"companies":[{"sym":"DLF.NS","name":"DLF Limited"},{"sym":"GODREJPROP.NS","name":"Godrej Properties Limited"},{"sym":"OBEROIRLTY.NS","name":"Oberoi Realty Limited"},{"sym":"PRESTIGE.NS","name":"Prestige Estates Projects Limited"},{"sym":"PHOENIXLTD.NS","name":"The Phoenix Mills Limited"},{"sym":"LODHA.NS","name":"Lodha Developers Limited"},{"sym":"BRIGADE.NS","name":"Brigade Enterprises Limited"},{"sym":"SOBHA.NS","name":"Sobha Limited"},{"sym":"KOLTEPATIL.NS","name":"Kolte - Patil Developers Limited"},{"sym":"MAHLIFE.NS","name":"Mahindra Lifespace Developers Limited"},{"sym":"AJMERA.NS","name":"Ajmera Realty & Infra India Limited"}]},{"id":"infra","name":"Infrastructure","icon":"\ud83c\udf09","color":"#22d3ee","industries":["Roads","Bridges","Ports","Airports","Smart Cities"],"companies":[{"sym":"LT.NS","name":"Larsen & Toubro Limited"},{"sym":"ADANIPORTS.NS","name":"Adani Ports and Special Economic Zone Limited"},{"sym":"GMRAIRPORT.NS","name":"GMR AIRPORTS LIMITED"},{"sym":"IRB.NS","name":"IRB Infrastructure Developers Limited"},{"sym":"NCC.NS","name":"NCC Limited"},{"sym":"ASHOKA.NS","name":"Ashoka Buildcon Limited"},{"sym":"IRCON.NS","name":"Ircon International Limited"},{"sym":"KNRCON.NS","name":"KNR Constructions Limited"},{"sym":"PNCINFRA.NS","name":"PNC Infratech Limited"}]},{"id":"railway","name":"Railways","icon":"\ud83d\ude82","color":"#a78bfa","industries":["Wagons","Locos","EPC","Finance","Tourism/Ticketing"],"companies":[{"sym":"RVNL.NS","name":"Rail Vikas Nigam Limited"},{"sym":"IRFC.NS","name":"Indian Railway Finance Corporation Limited"},{"sym":"IRCTC.NS","name":"Indian Railway Catering And Tourism Corporati"},{"sym":"RAILTEL.NS","name":"Railtel Corporation Of India Limited"},{"sym":"IRCON.NS","name":"Ircon International Limited"},{"sym":"TITAGARH.NS","name":"TITAGARH RAIL SYSTEMS LIMITED"},{"sym":"TEXRAIL.NS","name":"Texmaco Rail & Engineering Limited"},{"sym":"JWL.NS","name":"Jupiter Wagons Limited"},{"sym":"BEML.NS","name":"BEML Limited"}]},{"id":"power","name":"Power & Renewables","icon":"\u26a1","color":"#fbbf24","industries":["Thermal","Hydro","Solar","Wind","Power Finance"],"companies":[{"sym":"NTPC.NS","name":"NTPC Limited"},{"sym":"POWERGRID.NS","name":"Power Grid Corporation of India Limited"},{"sym":"ADANIGREEN.NS","name":"Adani Green Energy Limited"},{"sym":"ADANIPOWER.NS","name":"Adani Power Limited"},{"sym":"TATAPOWER.NS","name":"Tata Power Company Limited"},{"sym":"TORNTPOWER.NS","name":"Torrent Power Limited"},{"sym":"CESC.NS","name":"CESC Limited"},{"sym":"NHPC.NS","name":"NHPC Limited"},{"sym":"SJVN.NS","name":"SJVN Limited"},{"sym":"JSWENERGY.NS","name":"JSW Energy Limited"},{"sym":"RPOWER.NS","name":"Reliance Power Limited"},{"sym":"NTPCGREEN.NS","name":"NTPC Green Energy Limited"},{"sym":"INOXWIND.NS","name":"Inox Wind Limited"},{"sym":"IREDA.NS","name":"Indian Renewable Energy Development Agency Li"}]},{"id":"oil","name":"Oil & Gas","icon":"\ud83d\udee2\ufe0f","color":"#d97706","industries":["Exploration","Refining","Gas Distribution","Lubricants","Pipelines"],"companies":[{"sym":"RELIANCE.NS","name":"Reliance Industries Limited"},{"sym":"ONGC.NS","name":"Oil & Natural Gas Corporation Limited"},{"sym":"BPCL.NS","name":"Bharat Petroleum Corporation Limited"},{"sym":"IOC.NS","name":"Indian Oil Corporation Limited"},{"sym":"GAIL.NS","name":"GAIL (India) Limited"},{"sym":"OIL.NS","name":"Oil India Limited"},{"sym":"MRPL.NS","name":"Mangalore Refinery and Petrochemicals Limited"},{"sym":"PETRONET.NS","name":"Petronet LNG Limited"},{"sym":"GULFOILLUB.NS","name":"Gulf Oil Lubricants India Limited"}]},{"id":"pse","name":"PSU / PSE Enterprises","icon":"\ud83c\udfdb\ufe0f","color":"#64748b","industries":["Heavy Electricals","Coal","Minerals","Housing Finance","FIs"],"companies":[{"sym":"BHEL.NS","name":"Bharat Heavy Electricals Limited"},{"sym":"COALINDIA.NS","name":"Coal India Limited"},{"sym":"SAIL.NS","name":"Steel Authority of India Limited"},{"sym":"NBCC.NS","name":"NBCC (India) Limited"},{"sym":"HUDCO.NS","name":"Housing & Urban Development Corporation Limit"},{"sym":"MOIL.NS","name":"MOIL Limited"},{"sym":"PFC.NS","name":"Power Finance Corporation Limited"},{"sym":"RECLTD.NS","name":"REC Limited"},{"sym":"IREDA.NS","name":"Indian Renewable Energy Development Agency Li"},{"sym":"NMDC.NS","name":"NMDC Limited"},{"sym":"NLCINDIA.NS","name":"NLC India Limited"}]},{"id":"telecom","name":"Telecom","icon":"\ud83d\udce1","color":"#0ea5e9","industries":["Mobile Services","Broadband","Optical Fibre","Tower","Enterprise"],"companies":[{"sym":"BHARTIARTL.NS","name":"Bharti Airtel Limited"},{"sym":"IDEA.NS","name":"Vodafone Idea Limited"},{"sym":"TTML.NS","name":"Tata Teleservices (Maharashtra) Limited"},{"sym":"HFCL.NS","name":"HFCL Limited"},{"sym":"STLTECH.NS","name":"Sterlite Technologies Limited"},{"sym":"TEJASNET.NS","name":"Tejas Networks Limited"},{"sym":"ITI.NS","name":"ITI Limited"},{"sym":"SIGACHI.NS","name":"Sigachi Industries Limited"}]},{"id":"consumer_dur","name":"Consumer Durables","icon":"\ud83d\udcfa","color":"#0891b2","industries":["Home Appliances","AC & Cooling","Wearables","Lighting","Kitchen Appliances"],"companies":[{"sym":"HAVELLS.NS","name":"Havells India Limited"},{"sym":"VOLTAS.NS","name":"Voltas Limited"},{"sym":"TITAN.NS","name":"Titan Company Limited"},{"sym":"WHIRLPOOL.NS","name":"Whirlpool of India Limited"},{"sym":"BLUESTARCO.NS","name":"Blue Star Limited"},{"sym":"CROMPTON.NS","name":"Crompton Greaves Consumer Electricals Limited"},{"sym":"VGUARD.NS","name":"V-Guard Industries Limited"},{"sym":"POLYCAB.NS","name":"Polycab India Limited"},{"sym":"DIXON.NS","name":"Dixon Technologies (India) Limited"},{"sym":"AMBER.NS","name":"Amber Enterprises India Limited"},{"sym":"BAJAJELEC.NS","name":"Bajaj Electricals Limited"}]},{"id":"cables","name":"Cables & Wires","icon":"\ud83d\udd0c","color":"#7c3aed","industries":["Power Cables","Data Cables","Optical Fibre","Wiring Devices","Switchgear"],"companies":[{"sym":"POLYCAB.NS","name":"Polycab India Limited"},{"sym":"KEI.NS","name":"KEI Industries Limited"},{"sym":"HAVELLS.NS","name":"Havells India Limited"},{"sym":"FINCABLES.NS","name":"Finolex Cables Limited"},{"sym":"STLTECH.NS","name":"Sterlite Technologies Limited"},{"sym":"VGUARD.NS","name":"V-Guard Industries Limited"},{"sym":"SUPREMEIND.NS","name":"Supreme Industries Limited"},{"sym":"FIEMIND.NS","name":"Fiem Industries Limited"}]},{"id":"logistics","name":"Logistics & Shipping","icon":"\ud83d\udea2","color":"#0369a1","industries":["Express Logistics","Container Ports","Cold Chain","Freight","3PL"],"companies":[{"sym":"CONCOR.NS","name":"Container Corporation of India Limited"},{"sym":"DELHIVERY.NS","name":"Delhivery Limited"},{"sym":"BLUEDART.NS","name":"Blue Dart Express Limited"},{"sym":"MAHLOG.NS","name":"Mahindra Logistics Limited"},{"sym":"TVSSCS.NS","name":"TVS Supply Chain Solutions Limited"},{"sym":"ALLCARGO.NS","name":"Allcargo Logistics Limited"},{"sym":"SOTL.NS","name":"Savita Oil Technologies Limited"},{"sym":"SCI.NS","name":"Shipping Corporation Of India Limited"}]},{"id":"aviation","name":"Aviation & Airports","icon":"\u2708\ufe0f","color":"#2563eb","industries":["Airlines","Ground Handling","MRO","Airports","Cargo"],"companies":[{"sym":"INDIGO.NS","name":"InterGlobe Aviation Limited"},{"sym":"GMRAIRPORT.NS","name":"GMR AIRPORTS LIMITED"},{"sym":"GMRP&UI.NS","name":"GMR Power and Urban Infra Limited"},{"sym":"BLUEDART.NS","name":"Blue Dart Express Limited"}]},{"id":"media","name":"Media & Entertainment","icon":"\ud83d\udcfd\ufe0f","color":"#db2777","industries":["Broadcasting","OTT","Music","Films","Multiplexes"],"companies":[{"sym":"SUNTV.NS","name":"Sun TV Network Limited"},{"sym":"ZEEL.NS","name":"Zee Entertainment Enterprises Limited"},{"sym":"PVRINOX.NS","name":"PVR INOX Limited"},{"sym":"NETWORK18.NS","name":"Network18 Media & Investments Limited"},{"sym":"NAZARA.NS","name":"Nazara Technologies Limited"},{"sym":"SAREGAMA.NS","name":"Saregama India Limited"},{"sym":"TIPSMUSIC.NS","name":"Tips Music Limited"},{"sym":"IMFA.NS","name":"Indian Metals & Ferro Alloys Limited"}]},{"id":"hospitality","name":"Hotels & Hospitality","icon":"\ud83c\udfe8","color":"#be185d","industries":["Luxury Hotels","Budget Hotels","Resorts","Restaurant Chains","Tourism"],"companies":[{"sym":"INDHOTEL.NS","name":"The Indian Hotels Company Limited"},{"sym":"EIHOTEL.NS","name":"EIH Limited"},{"sym":"ITCHOTELS.NS","name":"ITC Hotels Limited"},{"sym":"CHALET.NS","name":"Chalet Hotels Limited"},{"sym":"LEMONTREE.NS","name":"Lemon Tree Hotels Limited"},{"sym":"TAJGVK.NS","name":"Taj GVK Hotels & Resorts Limited"},{"sym":"ADVANIHOTR.NS","name":"Advani Hotels & Resorts (India) Limited"},{"sym":"BRIGHOTEL.NS","name":"Brigade Hotel Ventures Limited"}]},{"id":"jewellery","name":"Jewellery & Retail","icon":"\ud83d\udc8e","color":"#d97706","industries":["Gold Jewellery","Diamond","Organised Retail","Lifestyle","Watches"],"companies":[{"sym":"TITAN.NS","name":"Titan Company Limited"},{"sym":"KALYANKJIL.NS","name":"Kalyan Jewellers India Limited"},{"sym":"SENCO.NS","name":"Senco Gold Limited"},{"sym":"PCJEWELLER.NS","name":"PC Jeweller Limited"},{"sym":"RAJESHEXPO.NS","name":"Rajesh Exports Limited"},{"sym":"TBZ.NS","name":"Tribhovandas Bhimji Zaveri Limited"},{"sym":"THANGAMAYL.NS","name":"Thangamayil Jewellery Limited"},{"sym":"PNGJL.NS","name":"P N Gadgil Jewellers Limited"}]},{"id":"textiles","name":"Textiles & Garments","icon":"\ud83d\udc58","color":"#9333ea","industries":["Cotton Yarn","Man-Made Fibre","Garments","Technical Textiles","Home Textiles"],"companies":[{"sym":"RAYMOND.NS","name":"Raymond Limited"},{"sym":"ARVIND.NS","name":"Arvind Limited"},{"sym":"TRIDENT.NS","name":"Trident Limited"},{"sym":"HIMATSEIDE.NS","name":"Himatsingka Seide Limited"},{"sym":"KITEX.NS","name":"Kitex Garments Limited"},{"sym":"NITINSPIN.NS","name":"Nitin Spinners Limited"},{"sym":"BOMDYEING.NS","name":"Bombay Dyeing & Mfg Company Limited"},{"sym":"GRASIM.NS","name":"Grasim Industries Limited"},{"sym":"SOMANYCERA.NS","name":"Somany Ceramics Limited"}]},{"id":"agri","name":"Agri & Fertilisers","icon":"\ud83c\udf3e","color":"#65a30d","industries":["Fertilisers","Pesticides","Seeds","Crop Protection","Agri Input"],"companies":[{"sym":"COROMANDEL.NS","name":"Coromandel International Limited"},{"sym":"CHAMBLFERT.NS","name":"Chambal Fertilizers & Chemicals Limited"},{"sym":"GSFC.NS","name":"Gujarat State Fertilizers & Chemicals Limited"},{"sym":"RCF.NS","name":"Rashtriya Chemicals and Fertilizers Limited"},{"sym":"NFL.NS","name":"National Fertilizers Limited"},{"sym":"PIIND.NS","name":"PI Industries Limited"},{"sym":"DHANUKA.NS","name":"Dhanuka Agritech Limited"},{"sym":"GODREJAGRO.NS","name":"Godrej Agrovet Limited"},{"sym":"BAYERCROP.NS","name":"Bayer Cropscience Limited"},{"sym":"ZUARI.NS","name":"Zuari Agro Chemicals Limited"},{"sym":"RALLIS.NS","name":"Rallis India Limited"}]}];
 
-// Assign visual tags for the Full List UI Cards
-SECTORS.forEach(sec => {
-  sec.companies.forEach(c => {
-    c.tags = [];
-    if(sec.name.includes("PSU") || sec.id === "pse") c.tags.push("#PSU");
-    if(sec.name.includes("Bank")) c.tags.push("#Banking");
-    if(sec.name.includes("Defence")) c.tags.push("#Defense");
-    if(sec.name.includes("IT")) c.tags.push("#Tech");
-    if(sec.name.includes("Auto")) c.tags.push("#Auto");
-    if(sec.id === "pharma" || sec.id === "hospital" || sec.id === "diagnostics") c.tags.push("#Healthcare");
-    if(sec.id === "nbfc" || sec.id === "sfb") c.tags.push("#NBFC");
-  });
-});
-
-// ── STATE VARIABLES ──
-const $ = id => document.getElementById(id);
-let pg = 'p1';
-let currentSort = 'sector'; 
-let cSym = ''; 
-let lwChart = null, cSeries = null, vSeries = null, smaSeries = null, smaVisible = false;
-let openAcc = new Set(), pcache = {};
-
+// State Tracker
+let screenerSortMode = 'default';
 const PROXY = 'https://quiet-salad-da44.breakoutcharts18.workers.dev/?url='; 
 
-// Watchlist Processing
+// Watchlist Handling
 let watchlist = new Set();
 try {
     const stored = localStorage.getItem('atm_wl');
     if(stored) watchlist = new Set(JSON.parse(stored));
 } catch(e) {
-    console.warn("Local storage disabled or unavailable.");
+    console.warn("Local storage unavailable.");
 }
 
 function updateWlCount() { 
@@ -293,10 +271,7 @@ async function fetchMarketDataBatch() {
     }
 
     renderHeatmap();
-    if(pg === 'p2') {
-        if(currentSort === 'sector') buildAcc();
-        else sortList(currentSort); 
-    }
+    if(pg === 'p2') buildAcc();
     if(pg === 'p_watch') renderWatchlist();
   } catch(e) {
     console.error("Data Sync Failed", e);
@@ -305,7 +280,7 @@ async function fetchMarketDataBatch() {
   setLoad(false);
 }
 
-// ── PERFORMANCE HEATMAP GRID MATRIX ──
+// ── COLOR GRADIENT ENGINE ──
 function getMatrixClass(pct) {
   if (pct >= 4.0) return 'bg-super-green';
   if (pct >= 1.5) return 'bg-mid-green';
@@ -322,40 +297,68 @@ function getMatrixTextClass(pct) {
   return 'txt-red';
 }
 
+// ── NEW PURE SECTOR-BASED HEATMAP MATRIX ──
 function renderHeatmap() {
-  let html = '';
+  let sectorMetrics = [];
+
   SECTORS.forEach(sec => {
-    const validComps = sec.companies.filter(c => pcache[c.sym] && typeof pcache[c.sym].price === 'number');
-    if(validComps.length === 0) return;
+    const activeComps = sec.companies.filter(c => pcache[c.sym] && typeof pcache[c.sym].price === 'number');
+    if(activeComps.length === 0) return;
 
-    validComps.sort((a, b) => pcache[b.sym].pct - pcache[a.sym].pct);
+    // Calculate strict average performance matrix of the sector
+    let cumulativePct = 0;
+    activeComps.forEach(c => cumulativePct += pcache[c.sym].pct);
+    const averagePct = cumulativePct / activeComps.length;
 
-    let cardsHtml = validComps.map(c => {
-      const d = pcache[c.sym];
-      const cls = getMatrixClass(d.pct);
-      const txtCls = getMatrixTextClass(d.pct);
-      const pStr = '₹' + d.price.toLocaleString('en-IN', {minimumFractionDigits:1, maximumFractionDigits:1});
-      const cStr = (d.pct >= 0 ? '+' : '') + d.pct.toFixed(2) + '%';
-      
-      return `
-        <div class="heatmap-card ${cls}" onclick="oc('${c.sym}','${c.name.replace(/'/g,"\\'")}')">
-          <div>
-            <div class="heatmap-symbol">${c.sym.replace('.NS', '')}</div>
-            <div class="heatmap-price">${pStr}</div>
+    sectorMetrics.push({
+      id: sec.id,
+      name: sec.name,
+      icon: sec.icon,
+      count: activeComps.length,
+      avgPct: averagePct,
+      industries: sec.industries
+    });
+  });
+
+  // Sort sectors cleanly by relative daily performance descending
+  sectorMetrics.sort((a, b) => b.avgPct - a.avgPct);
+
+  let heatmapHtml = sectorMetrics.map(sec => {
+    const bgCls = getMatrixClass(sec.avgPct);
+    const textCls = getMatrixTextClass(sec.avgPct);
+    const formattedPct = (sec.avgPct >= 0 ? '+' : '') + sec.avgPct.toFixed(2) + '%';
+    
+    return `
+      <div class="heatmap-card ${bgCls}" style="min-height: 110px;" onclick="focusSectorInScreener('${sec.id}')">
+        <div>
+          <div class="heatmap-symbol" style="font-size:14px; font-weight:800; color:#fff;">${sec.icon} ${sec.name}</div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-top:4px; font-weight:500;">
+            ${sec.industries.slice(0,2).join(' · ')}
           </div>
-          <div class="heatmap-pct ${txtCls}">${cStr}</div>
         </div>
-      `;
-    }).join('');
-
-    html += `
-      <div class="hm-sector-group">
-        <div class="hm-sector-title">${sec.icon} ${sec.name} <span class="count">${validComps.length}</span></div>
-        <div class="heatmap-grid">${cardsHtml}</div>
+        <div class="heatmap-pct ${textCls}" style="font-size:22px; font-weight:900;">${formattedPct}</div>
       </div>
     `;
-  });
-  $('heatmap-container').innerHTML = html;
+  }).join('');
+
+  $('heatmap-container').innerHTML = `
+    <div class="heatmap-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+      ${heatmapHtml}
+    </div>
+  `;
+}
+
+// Helper to pivot from heatmap node directly into corresponding accordion row
+function focusSectorInScreener(sectorId) {
+    sp('p2');
+    applyScreenerSort('default');
+    if(!openAcc.has(sectorId)) {
+        togAcc(sectorId);
+    }
+    setTimeout(() => {
+        const row = $('acc-' + sectorId);
+        if(row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
 }
 
 // ── COMPONENT DRAWER ELEMENT STRUCTS ──
@@ -369,69 +372,71 @@ function tgs(e, sym) {
   if(pg==='p_watch') renderWatchlist();
 }
 
-function buildCoCard(c, includeSectorTag = false) {
+function buildCoCard(c) {
   const isSt = watchlist.has(c.sym);
   const d = pcache[c.sym] || {price: 0, pct: 0};
   const pStr = d.price ? '₹'+d.price.toLocaleString('en-IN',{minimumFractionDigits:2}) : '—';
   const cStr = d.price ? (d.pct>=0?'+':'')+d.pct.toFixed(2)+'%' : '—';
   const cCol = d.pct>=0 ? 'var(--green)' : 'var(--red)';
   
-  const secTagHtml = includeSectorTag && c.secName ? `<span class="c-sec-tag">${c.secName}</span>` : '';
-  
   return `<div class="cco" onclick="oc('${c.sym}','${c.name.replace(/'/g,"\\'")}')">
       <button class="star-btn ${isSt ? 'starred' : ''}" onclick="tgs(event, '${c.sym}')">${isSt ? '★' : '☆'}</button>
       <div class="ctop">
-        <div>
-          ${secTagHtml}
-          <div class="cname">${c.name.length>28?c.name.slice(0,28)+'…':c.name}</div>
-          <div class="csym">${c.sym}</div>
-        </div>
+        <div><div class="cname">${c.name.length>28?c.name.slice(0,28)+'…':c.name}</div><div class="csym">${c.sym}</div></div>
         <div><div class="cltp">${pStr}</div><div class="cchg" style="color:${cCol}">${cStr}</div></div>
       </div>
-      ${c.tags && c.tags.length > 0 ? `<div class="c-tags">${c.tags.slice(0,3).map(t=>`<span class="c-tag">${t}</span>`).join('')}</div>` : ''}
   </div>`;
 }
 
 function renderWatchlist() {
   const comps = [];
   SECTORS.forEach(s => s.companies.forEach(c => { if(watchlist.has(c.sym)) comps.push(c); }));
-  $('watch-grid').innerHTML = comps.map(c => buildCoCard(c, false)).join('');
+  $('watch-grid').innerHTML = comps.map(buildCoCard).join('');
   $('emp_watch').style.display = comps.length > 0 ? 'none' : 'block';
 }
 
-// ── FULL LIST SORTING ENGINE ──
-function sortList(mode) {
-  currentSort = mode;
-  if (mode === 'sector') {
-    buildAcc(); 
-    return;
-  }
-
-  let allComps = [];
-  SECTORS.forEach(s => s.companies.forEach(c => {
-     allComps.push({...c, secName: s.name});
-  }));
-
-  if (mode === 'gainers') {
-    allComps.sort((a,b) => (pcache[b.sym]?.pct || -9999) - (pcache[a.sym]?.pct || -9999));
-  } else if (mode === 'losers') {
-    allComps.sort((a,b) => (pcache[a.sym]?.pct || 9999) - (pcache[b.sym]?.pct || 9999));
-  } else if (mode === 'alpha') {
-    allComps.sort((a,b) => a.name.localeCompare(b.name));
-  }
-
-  $('accs').innerHTML = `<div class="cgrid">` + allComps.map(c => buildCoCard(c, true)).join('') + `</div>`;
-  filt($('srch').value); 
+// ── ORDERLY DRIVEN SECTIONAL SORT ENGINE ──
+function applyScreenerSort(mode) {
+    screenerSortMode = mode;
+    buildAcc();
 }
 
-// ── STABLE TAXONOMY ACCORDION SYSTEM ──
 function buildAcc(){
-  currentSort = 'sector';
-  if($('sort-select')) $('sort-select').value = 'sector';
-  
-  $('accs').innerHTML=SECTORS.map(sec=>`
+  let processedSectors = SECTORS.map(sec => {
+      // Calculate sector performance block value to allow sorting sectors themselves later
+      const activeComps = sec.companies.filter(c => pcache[c.sym]);
+      let sectorAvg = 0;
+      if(activeComps.length > 0) {
+          let sum = 0;
+          activeComps.forEach(c => sum += pcache[c.sym].pct);
+          sectorAvg = sum / activeComps.length;
+      }
+
+      // Clone company list array and apply dynamic, strict ordered ranks internally inside this sector
+      let sortedCompanies = [...sec.companies];
+      if (screenerSortMode === 'gainers') {
+          sortedCompanies.sort((a, b) => (pcache[b.sym]?.pct || 0) - (pcache[a.sym]?.pct || 0));
+      } else if (screenerSortMode === 'losers') {
+          sortedCompanies.sort((a, b) => (pcache[a.sym]?.pct || 0) - (pcache[b.sym]?.pct || 0));
+      } else if (screenerSortMode === 'alpha') {
+          sortedCompanies.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      return { ...sec, companies: sortedCompanies, calculatedAvg: sectorAvg };
+  });
+
+  // Order sector accordion sections themselves globally based on sorting parameters
+  if (screenerSortMode === 'gainers') {
+      processedSectors.sort((a, b) => b.calculatedAvg - a.calculatedAvg);
+  } else if (screenerSortMode === 'losers') {
+      processedSectors.sort((a, b) => a.calculatedAvg - b.calculatedAvg);
+  }
+
+  $('accs').innerHTML = processedSectors.map(sec => {
+    const isOpened = openAcc.has(sec.id) ? 'open' : '';
+    return `
     <div class="acc" id="acc-${sec.id}">
-      <div class="ah" id="ah-${sec.id}" onclick="togAcc('${sec.id}')">
+      <div class="ah ${isOpened}" id="ah-${sec.id}" onclick="togAcc('${sec.id}')">
         <div class="al"><span class="aico">${sec.icon}</span>
           <div><div class="atitle">${sec.name}</div>
           <div class="acount">${sec.companies.length} companies · ${sec.industries.slice(0,3).join(', ')}</div></div>
@@ -441,21 +446,25 @@ function buildAcc(){
           <span class="achev">▼</span>
         </div>
       </div>
-      <div class="ab" id="ab-${sec.id}">
-        <div class="cgrid">${sec.companies.map(c => buildCoCard(c, false)).join('')}</div>
+      <div class="ab ${isOpened}" id="ab-${sec.id}">
+        <div class="cgrid">${sec.companies.map(buildCoCard).join('')}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
     
-  SECTORS.forEach(sec => {
+  processedSectors.forEach(sec => {
     const el = $('chip-'+sec.id);
     if(el && sec.companies.length > 0) {
-        const d = pcache[sec.companies[0].sym];
-        if(d && d.price) {
-            el.textContent = (d.pct>=0?'▲ ':'▼ ') + d.pct.toFixed(2) + '%';
-            el.style.color = d.pct>=0 ? 'var(--green)' : 'var(--red)';
+        const targetSample = sec.companies[0].sym;
+        const d = pcache[targetSample];
+        if(d) {
+            el.textContent = (sec.calculatedAvg >= 0 ? '▲ ' : '▼ ') + sec.calculatedAvg.toFixed(2) + '%';
+            el.style.color = sec.calculatedAvg >= 0 ? 'var(--green)' : 'var(--red)';
         }
     }
   });
+
+  filt($('srch').value);
 }
 
 function togAcc(id){
@@ -465,20 +474,7 @@ function togAcc(id){
 }
 
 function filt(q){
-  const t=q.trim().toLowerCase();
-  if(currentSort !== 'sector') {
-      let cc = 0;
-      document.querySelectorAll('#accs .cco').forEach(c => {
-          const show = c.querySelector('.cname').textContent.toLowerCase().includes(t) || 
-                       c.querySelector('.csym').textContent.toLowerCase().includes(t) ||
-                       c.querySelector('.c-sec-tag')?.textContent.toLowerCase().includes(t);
-          c.style.display = show ? '' : 'none';
-          if(show) cc++;
-      });
-      $('emp2').style.display = cc > 0 ? 'none' : 'block';
-      return;
-  }
-
+  const t=q.trim().toLowerCase(); let any=false;
   SECTORS.forEach(sec=>{
     const ae=$('acc-'+sec.id),be=$('ab-'+sec.id),he=$('ah-'+sec.id);
     if(!ae)return;
@@ -487,7 +483,7 @@ function filt(q){
     const sm=sec.name.toLowerCase().includes(t)||sec.industries.some(i=>i.toLowerCase().includes(t));
     let cc=0;
     ae.querySelectorAll('.cco').forEach(c=>{
-      const show=sm||c.querySelector('.cname').textContent.toLowerCase().includes(t)||c.querySelector('.csym').textContent.toLowerCase().includes(t)||c.tags?.some(tag => tag.toLowerCase().includes(t));
+      const show=sm||c.querySelector('.cname').textContent.toLowerCase().includes(t)||c.querySelector('.csym').textContent.toLowerCase().includes(t);
       c.style.display=show?'':'none'; if(show)cc++;
     });
     if(sm||cc>0){ae.style.display='';be.classList.add('open');he.classList.add('open');any=true;}
@@ -496,58 +492,32 @@ function filt(q){
   $('emp2').style.display=any?'none':'block';
 }
 
-// ── FIXED FREE OPEN-SOURCE LIGHTWEIGHT CHART MATRIX ──
+// ── LIGHTWEIGHT CHART MODAL ENGINE ──
 function oc(sym,name){
   cSym=sym;
   $('ccname').textContent=name; $('ccsym').textContent=sym;
   $('cmodal').classList.add('open');
   if(smaVisible && $('btn-sma')) $('btn-sma').classList.add('active');
   
-  // Clean destroy previous instances to avoid DOM canvas leakage or freeze bugs
   if(lwChart) {
      try { lwChart.remove(); } catch(e){}
      lwChart = null; cSeries = null; vSeries = null; smaSeries = null;
   }
-  
-  // Re-initialize clean empty container grid space
   $('lwc').innerHTML = '';
   
   lwChart=LightweightCharts.createChart($('lwc'),{
     width: $('lwc').clientWidth,
     height: 420,
-    layout:{
-      background:{type: 'solid', color:'#0d0d1a'},
-      textColor:'#6b6b8e'
-    },
-    grid:{
-      vertLines:{color:'#1a1a2e'},
-      horzLines:{color:'#1a1a2e'}
-    },
+    layout:{background:{type: 'solid', color:'#0d0d1a'},textColor:'#6b6b8e'},
+    grid:{vertLines:{color:'#1a1a2e'},horzLines:{color:'#1a1a2e'}},
     rightPriceScale:{borderColor:'#2a2a45'},
     timeScale:{borderColor:'#2a2a45',timeVisible:false},
   });
 
-  cSeries=lwChart.addCandlestickSeries({
-    upColor:'#10b981',downColor:'#ef4444',
-    borderUpColor:'#10b981',borderDownColor:'#ef4444',
-    wickUpColor:'#10b981',wickDownColor:'#ef4444'
-  });
+  cSeries=lwChart.addCandlestickSeries({upColor:'#10b981',downColor:'#ef4444',borderUpColor:'#10b981',borderDownColor:'#ef4444',wickUpColor:'#10b981',wickDownColor:'#ef4444'});
+  vSeries=lwChart.addHistogramSeries({color: '#3b82f6', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 }});
+  smaSeries=lwChart.addLineSeries({ color: '#fbbf24', lineWidth: 2, crosshairMarkerVisible: false, visible: smaVisible });
 
-  vSeries=lwChart.addHistogramSeries({
-    color: '#3b82f6', 
-    priceFormat: { type: 'volume' },
-    priceScaleId: '', 
-    scaleMargins: { top: 0.8, bottom: 0 },
-  });
-
-  smaSeries=lwChart.addLineSeries({ 
-    color: '#fbbf24', 
-    lineWidth: 2, 
-    crosshairMarkerVisible: false, 
-    visible: smaVisible 
-  });
-
-  // Handle browser resizing cleanly
   window.addEventListener('resize', () => {
      if(lwChart && $('lwc')) lwChart.resize($('lwc').clientWidth, 420);
   });
@@ -573,7 +543,7 @@ async function loadChart(sym){
     
     const text = await r.text();
     let j;
-    try { j = JSON.parse(text); } catch(e) { throw new Error('Proxy data format error.'); }
+    try { j = JSON.parse(text); } catch(e) { throw new Error('Proxy validation failure.'); }
     
     const res=j?.chart?.result?.[0]; if(!res)throw new Error('Data payload missing');
     const ts=res.timestamp||[],q=res.indicators?.quote?.[0]||{},m=res.meta;
@@ -582,6 +552,7 @@ async function loadChart(sym){
     let lastTimeStr = '';
     
     for(let i=0; i<ts.length; i++) {
+      const t = ts[i]; // FIX: Correctly instantiate timeframe element variable to prevent empty nodes
       if(q.open[i] != null && q.high[i] != null && q.low[i] != null && q.close[i] != null) {
         const d = new Date(t * 1000);
         const y = d.getFullYear();
@@ -589,7 +560,6 @@ async function loadChart(sym){
         const dStr = String(d.getDate()).padStart(2, '0');
         const timeStr = `${y}-${mStr}-${dStr}`;
         
-        // Prevent duplicate day array key crashes from intraday runtime updates
         if(timeStr === lastTimeStr && candles.length > 0) {
            candles[candles.length - 1] = {time: timeStr, open:q.open[i], high:q.high[i], low:q.low[i], close:q.close[i]};
            volumes[volumes.length - 1] = {time: timeStr, value:q.volume[i]||0, color: q.close[i]>=q.open[i]?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'};
@@ -648,10 +618,7 @@ function sp(id){
   document.querySelectorAll('.n-tab').forEach(t=>t.classList.toggle('active',t.dataset.p===id));
   
   if(id==='p1') renderHeatmap();
-  if(id==='p2') {
-      if(currentSort === 'sector') buildAcc();
-      else sortList(currentSort);
-  }
+  if(id==='p2') buildAcc();
   if(id==='p_watch') renderWatchlist();
 }
 
