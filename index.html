@@ -202,14 +202,27 @@ SECTORS.forEach(sec => {
 });
 
 // ── STATE VARIABLES ──
-let pg='p1';
-let lwChart=null, cSeries=null, vSeries=null, smaSeries=null, smaVisible=false;
-let openAcc=new Set(), pcache={};
-const PROXY='https://corsproxy.io/?';
+const $ = id => document.getElementById(id);
+let pg = 'p1';
+let cSym = ''; // Fix: Explicitly declare missing variable
+let lwChart = null, cSeries = null, vSeries = null, smaSeries = null, smaVisible = false;
+let openAcc = new Set(), pcache = {};
 
-// Watchlist Processing
-let watchlist = new Set(JSON.parse(localStorage.getItem('atm_wl') || '[]'));
-function updateWlCount() { $('wl-count').textContent = watchlist.size; }
+// Use a more stable proxy. If corsproxy.io fails, api.allorigins.win is a strong fallback.
+const PROXY = 'https://api.allorigins.win/raw?url='; 
+
+// Watchlist Processing with safe local storage fallback
+let watchlist = new Set();
+try {
+    const stored = localStorage.getItem('atm_wl');
+    if(stored) watchlist = new Set(JSON.parse(stored));
+} catch(e) {
+    console.warn("Local storage disabled or unavailable.");
+}
+
+function updateWlCount() { 
+    if($('wl-count')) $('wl-count').textContent = watchlist.size; 
+}
 
 // ── OPTIMIZED BATCH QUOTE INGESTION ENGINE ──
 async function fetchMarketDataBatch() {
@@ -223,9 +236,18 @@ async function fetchMarketDataBatch() {
   for (let i = 0; i < allSymbols.length; i += chunkSize) {
     const chunk = allSymbols.slice(i, i + chunkSize).join(',');
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${chunk}`;
+    
+    // Add try-catch within the map to prevent a single failed chunk from halting everything
     fetchPromises.push(
       fetch(PROXY + encodeURIComponent(url))
-        .then(res => res.json())
+        .then(async (res) => {
+            const text = await res.text();
+            try {
+                return JSON.parse(text); // Safe parsing
+            } catch(e) {
+                return null; // Return null if proxy hands back an HTML error page
+            }
+        })
         .catch(() => null)
     );
   }
@@ -248,8 +270,7 @@ async function fetchMarketDataBatch() {
     });
 
     if(successCount === 0) {
-      // Graceful fallback if CORS proxy blocks the request
-      $('hm-status').innerHTML = '<span style="color:var(--red)">⚠ Sync Failed. The free CORS proxy might be temporarily overloaded. The system will retry automatically.</span>';
+      $('hm-status').innerHTML = '<span style="color:var(--red)">⚠ Sync Failed. The data proxy is temporarily overloaded or blocked. The system will retry automatically.</span>';
     } else {
       $('hm-status').innerHTML = '<span>Real-time sector performance matrix. Sort order aligns with highest daily relative momentum.</span>';
     }
@@ -284,7 +305,7 @@ function getMatrixTextClass(pct) {
 function renderHeatmap() {
   let html = '';
   SECTORS.forEach(sec => {
-    const validComps = sec.companies.filter(c => pcache[c.sym]);
+    const validComps = sec.companies.filter(c => pcache[c.sym] && typeof pcache[c.sym].price === 'number');
     if(validComps.length === 0) return;
 
     validComps.sort((a, b) => pcache[b.sym].pct - pcache[a.sym].pct);
@@ -321,7 +342,13 @@ function renderHeatmap() {
 function tgs(e, sym) {
   e.stopPropagation();
   if(watchlist.has(sym)) watchlist.delete(sym); else watchlist.add(sym);
-  localStorage.setItem('atm_wl', JSON.stringify([...watchlist]));
+  
+  try {
+      localStorage.setItem('atm_wl', JSON.stringify([...watchlist]));
+  } catch(err) {
+      console.warn("Could not save to local storage");
+  }
+  
   updateWlCount();
   e.target.classList.toggle('starred', watchlist.has(sym));
   e.target.textContent = watchlist.has(sym) ? '★' : '☆';
@@ -375,7 +402,7 @@ function buildAcc(){
     const el = $('chip-'+sec.id);
     if(el && sec.companies.length > 0) {
         const d = pcache[sec.companies[0].sym];
-        if(d) {
+        if(d && d.price) {
             el.textContent = (d.pct>=0?'▲ ':'▼ ') + d.pct.toFixed(2) + '%';
             el.style.color = d.pct>=0 ? 'var(--green)' : 'var(--red)';
         }
@@ -413,7 +440,7 @@ function oc(sym,name){
   cSym=sym;
   $('ccname').textContent=name; $('ccsym').textContent=sym;
   $('cmodal').classList.add('open');
-  if(smaVisible) $('btn-sma').classList.add('active');
+  if(smaVisible && $('btn-sma')) $('btn-sma').classList.add('active');
   
   if(!lwChart){
     lwChart=LightweightCharts.createChart($('lwc'),{
@@ -428,7 +455,6 @@ function oc(sym,name){
       color: '#3b82f6', priceFormat: { type: 'volume' },
       priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 },
     });
-    // FIX: Changed from AreaSeries to LineSeries for a clean, professional SMA overlay
     smaSeries=lwChart.addLineSeries({ color: '#fbbf24', lineWidth: 2, crosshairMarkerVisible: false, visible: smaVisible });
   }
   loadChart(sym);
@@ -450,7 +476,12 @@ async function loadChart(sym){
   try{
     const r=await fetch(PROXY+encodeURIComponent(url));
     if(!r.ok) throw new Error('Data transmission error');
-    const j=await r.json();
+    
+    // Validate JSON format
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); } catch(e) { throw new Error('Proxy returned invalid data format.'); }
+    
     const res=j?.chart?.result?.[0]; if(!res)throw new Error('Data payload missing');
     const ts=res.timestamp||[],q=res.indicators?.quote?.[0]||{},m=res.meta;
     
@@ -485,14 +516,19 @@ async function loadChart(sym){
     lwChart.timeScale().fitContent();
     
     const price = pcache[sym]?.price || m.regularMarketPrice;
-    const pct = pcache[sym]?.pct || ((price - (m.chartPreviousClose||price)) / (m.chartPreviousClose||price)) * 100;
-    $('cltp_m').textContent='₹'+price.toLocaleString('en-IN',{minimumFractionDigits:2});
-    $('cchg_m').textContent=(pct>=0?'+':'')+pct.toFixed(2)+'% '+(pct>=0?'▲':'▼');
-    $('cchg_m').style.color=pct>=0?'var(--green)':'var(--red)';
+    const prevClose = m.chartPreviousClose || price;
+    const pct = pcache[sym]?.pct || ((price - prevClose) / prevClose) * 100;
+    
+    if(price) {
+        $('cltp_m').textContent='₹'+price.toLocaleString('en-IN',{minimumFractionDigits:2});
+        $('cchg_m').textContent=(pct>=0?'+':'')+pct.toFixed(2)+'% '+(pct>=0?'▲':'▼');
+        $('cchg_m').style.color=pct>=0?'var(--green)':'var(--red)';
+    }
     
     $('cload').style.display='none'; 
   }catch(err){
-    $('cload').innerHTML=`<div style="background:var(--rbg);border:1px solid var(--rbdr);padding:12px;border-radius:8px;color:var(--red);text-align:center;">⚠ Data Stream Failure:<br>${err.message}</div>`;
+    // Fixed CSS variable typo: var(--rbg) and var(--rbdr) updated to var(--light-red) and var(--red)
+    $('cload').innerHTML=`<div style="background:var(--light-red, #2a1414);border:1px solid var(--red, #dc2626);padding:12px;border-radius:8px;color:var(--red);text-align:center;">⚠ Data Stream Failure:<br>${err.message}</div>`;
   }
 }
 
@@ -500,23 +536,29 @@ function cc(){$('cmodal').classList.remove('open');}
 function cmc(e){if(e.target===$('cmodal'))cc();}
 
 // ── SYSTEM NAVIGATION ENGINE ──
-const $=id=>document.getElementById(id);
-function setLoad(on){$('btn-ref').disabled=on;$('btxt').textContent=on?'Syncing…':'Sync Terminal';$('spin').className=on?'spin':'';}
+function setLoad(on){
+    if($('btn-ref')) $('btn-ref').disabled=on;
+    if($('btxt')) $('btxt').textContent=on?'Syncing…':'Sync Terminal';
+    if($('spin')) $('spin').className=on?'spin':'';
+}
+
 function sp(id){
   pg=id;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  $(id).classList.add('active');
+  if($(id)) $(id).classList.add('active');
   document.querySelectorAll('.n-tab').forEach(t=>t.classList.toggle('active',t.dataset.p===id));
   
   if(id==='p1') renderHeatmap();
-  if(id==='p2' && $('accs').children.length===0) buildAcc();
+  if(id==='p2' && $('accs') && $('accs').children.length===0) buildAcc();
   if(id==='p_watch') renderWatchlist();
 }
+
 function refresh(){ fetchMarketDataBatch(); }
+
 function clock(){
   const now = new Date();
-  $('ntime').textContent='IST '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); 
-  $('nsub').textContent=now.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+  if($('ntime')) $('ntime').textContent='IST '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); 
+  if($('nsub')) $('nsub').textContent=now.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
 }
 
 // ── CONTEXT INGESTION LOOP ──
