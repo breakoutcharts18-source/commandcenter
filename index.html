@@ -235,29 +235,35 @@ async function fetchMarketDataBatch() {
   
   for (let i = 0; i < allSymbols.length; i += chunkSize) {
     const chunk = allSymbols.slice(i, i + chunkSize).join(',');
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${chunk}`;
+    // Changed to query2 - it is much less prone to rate limiting without cookies
+    const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${chunk}`;
     
-    // Add try-catch within the map to prevent a single failed chunk from halting everything
     fetchPromises.push(
       fetch(PROXY + encodeURIComponent(url))
         .then(async (res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
             try {
-                return JSON.parse(text); // Safe parsing
+                return JSON.parse(text); 
             } catch(e) {
-                return null; // Return null if proxy hands back an HTML error page
+                throw new Error('Invalid JSON received');
             }
         })
-        .catch(() => null)
+        .catch((err) => {
+            return { _error: err.message }; 
+        })
     );
   }
   
   try {
     const results = await Promise.all(fetchPromises);
     let successCount = 0;
+    let lastError = "";
     
     results.forEach(res => {
-      if (res?.quoteResponse?.result) {
+      if (res && res._error) {
+        lastError = res._error;
+      } else if (res?.quoteResponse?.result) {
         successCount++;
         res.quoteResponse.result.forEach(q => {
           pcache[q.symbol] = {
@@ -270,7 +276,8 @@ async function fetchMarketDataBatch() {
     });
 
     if(successCount === 0) {
-      $('hm-status').innerHTML = '<span style="color:var(--red)">⚠ Sync Failed. The data proxy is temporarily overloaded or blocked. The system will retry automatically.</span>';
+      // We will now see the exact error instead of a generic message
+      $('hm-status').innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. Please check your browser developer tools or the Cloudflare dashboard.</span>`;
     } else {
       $('hm-status').innerHTML = '<span>Real-time sector performance matrix. Sort order aligns with highest daily relative momentum.</span>';
     }
@@ -471,13 +478,13 @@ async function loadChart(sym){
   $('cload').innerHTML = `<div class="cspn"></div><span style="margin-top:10px;">Loading daily chart intervals…</span>`;
   cSeries.setData([]); vSeries.setData([]); smaSeries.setData([]);
   
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
+  // Also updated this chart endpoint to query2
+  const url=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
   
   try{
     const r=await fetch(PROXY+encodeURIComponent(url));
-    if(!r.ok) throw new Error('Data transmission error');
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     
-    // Validate JSON format
     const text = await r.text();
     let j;
     try { j = JSON.parse(text); } catch(e) { throw new Error('Proxy returned invalid data format.'); }
