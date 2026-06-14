@@ -204,12 +204,12 @@ SECTORS.forEach(sec => {
 // ── STATE VARIABLES ──
 const $ = id => document.getElementById(id);
 let pg = 'p1';
-let cSym = ''; // Fix: Explicitly declare missing variable
+let cSym = ''; 
 let lwChart = null, cSeries = null, vSeries = null, smaSeries = null, smaVisible = false;
 let openAcc = new Set(), pcache = {};
 
-// Use a more stable proxy. If corsproxy.io fails, api.allorigins.win is a strong fallback.
-const PROXY = 'https://api.allorigins.win/raw?url='; 
+// ── CUSTOM PRIVATE PROXY INTEGRATION ──
+const PROXY = 'https://quiet-salad-da44.breakoutcharts18.workers.dev/?url='; 
 
 // Watchlist Processing with safe local storage fallback
 let watchlist = new Set();
@@ -527,7 +527,6 @@ async function loadChart(sym){
     
     $('cload').style.display='none'; 
   }catch(err){
-    // Fixed CSS variable typo: var(--rbg) and var(--rbdr) updated to var(--light-red) and var(--red)
     $('cload').innerHTML=`<div style="background:var(--light-red, #2a1414);border:1px solid var(--red, #dc2626);padding:12px;border-radius:8px;color:var(--red);text-align:center;">⚠ Data Stream Failure:<br>${err.message}</div>`;
   }
 }
