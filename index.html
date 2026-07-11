@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <style>
 /* ── BASE VARIABLES & RESET (Light/Dark Engine) ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -62,42 +63,23 @@ nav{background:var(--bg);border-bottom:1px solid var(--border);padding:0 20px;di
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .status{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--muted);margin-bottom:20px;display:flex;align-items:center;gap:8px}
 
-/* ── PREMIUM HEATMAP MATRIX ── */
-.hm-sector-group { margin-bottom: 24px; }
-.hm-sector-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; }
-.hm-sector-title span.count { font-size: 10px; color: var(--dim); background: var(--s2); padding: 2px 8px; border-radius: 10px; }
-.heatmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-flow: dense; gap: 12px; }
-.heatmap-card { display: flex; flex-direction: column; justify-content: space-between; padding: 16px; border-radius: 8px; cursor: pointer; transition: transform 0.15s ease, filter 0.15s ease; border: 1px solid rgba(255,255,255,0.05); min-height: 110px; position: relative; }
-.heatmap-card:hover { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 6px 16px rgba(0,0,0,0.15); z-index: 2; }
-.heatmap-symbol { font-size: 14px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
-.heatmap-sub { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 4px; font-weight: 500; }
-.heatmap-pct { font-size: 22px; font-weight: 900; text-align: right; margin-top: auto; font-family: var(--mono); font-variant-numeric: tabular-nums; }
-
-body.light-theme .heatmap-card { border: 1px solid rgba(0,0,0,0.1); }
-body.light-theme .heatmap-symbol { color: #ffffff; }
-
-/* Fluid Matrix Gradients */
-.bg-super-green { background: #04441c; border-color: #16a34a; }
-.bg-mid-green   { background: #052e16; }
-.bg-light-green { background: #142416; }
-.bg-flat        { background: #11111f; }
-.bg-light-red   { background: #2a1414; }
-.bg-mid-red     { background: #450a0a; }
-.bg-super-red   { background: #620000; border-color: #dc2626; }
-.txt-green { color: #4ade80; }
-.txt-red { color: #fca5a5; }
-.txt-flat { color: #94a3b8; }
-
-body.light-theme .bg-super-green { background: #15803d; }
-body.light-theme .bg-mid-green   { background: #22c55e; }
-body.light-theme .bg-light-green { background: #4ade80; }
-body.light-theme .bg-flat        { background: #94a3b8; }
-body.light-theme .bg-light-red   { background: #f87171; }
-body.light-theme .bg-mid-red     { background: #ef4444; }
-body.light-theme .bg-super-red   { background: #b91c1c; }
-body.light-theme .txt-green { color: #ffffff; }
-body.light-theme .txt-red { color: #ffffff; }
-body.light-theme .txt-flat { color: #ffffff; }
+/* ── TRUE NESTED TREEMAP (market-cap sized, continuous color) ── */
+.tm-legend { display:flex; align-items:center; gap:10px; font-size:11px; color:var(--muted); margin-bottom:16px; font-weight:600; }
+.tm-legend-bar { width:220px; max-width:40vw; height:8px; border-radius:4px; background:linear-gradient(90deg,#7f1d1d,#c0392b,#33334d,#15803d,#22c55e); }
+.tm-legend-note { margin-left:auto; color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:0.5px; }
+.treemap-svg { display:block; width:100%; height:auto; border-radius:8px; overflow:hidden; }
+.tm-sector-rect { fill:none; stroke:var(--border); stroke-width:1; }
+.tm-sector-label-bg { fill:var(--s2); cursor:pointer; transition:fill .12s ease; }
+.tm-sector-label-bg:hover { fill:var(--dim); }
+.tm-sector-label-text { fill:var(--text); font-weight:800; letter-spacing:0.4px; text-transform:uppercase; pointer-events:none; user-select:none; font-family:'Inter',system-ui,sans-serif; }
+.tm-leaf-rect { cursor:pointer; stroke:var(--bg); stroke-width:1.5; transition:filter .12s ease, stroke-width .12s ease; }
+.tm-leaf-rect:hover { filter:brightness(1.22); stroke:#fff; stroke-width:2; }
+.tm-leaf-text-sym, .tm-leaf-text-pct { fill:#fff; font-family:var(--mono); pointer-events:none; user-select:none; text-shadow:0 1px 2px rgba(0,0,0,0.4); }
+.tm-leaf-text-pct { font-weight:800; font-variant-numeric:tabular-nums; }
+#tm-tooltip { position:fixed; display:none; z-index:500; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; min-width:170px; box-shadow:0 10px 30px rgba(0,0,0,0.35); pointer-events:none; }
+#tm-tooltip .tt-name { font-size:12px; font-weight:800; color:var(--text); margin-bottom:2px; max-width:220px; }
+#tm-tooltip .tt-sym { font-size:10px; color:var(--muted); font-family:var(--mono); margin-bottom:8px; }
+#tm-tooltip .tt-row { display:flex; justify-content:space-between; gap:18px; font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; }
 
 /* ── COMPONENT GRID & CARD LAYOUTS ── */
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
@@ -176,13 +158,7 @@ body.light-theme .txt-flat { color: #ffffff; }
 .cco.flash-up { animation: flashUp 1.1s ease-out; }
 .cco.flash-down { animation: flashDown 1.1s ease-out; }
 
-/* ── MAGNITUDE-SIZED HEATMAP TILES ── */
-.heatmap-card.hm-xl { grid-column: span 2; grid-row: span 2; }
-.heatmap-card.hm-xl .heatmap-symbol { font-size: 19px; }
-.heatmap-card.hm-xl .heatmap-pct { font-size: 36px; }
-.heatmap-card.hm-xl .heatmap-sub { font-size: 12px; }
-.heatmap-card.hm-lg { grid-column: span 2; }
-.heatmap-card.hm-lg .heatmap-pct { font-size: 27px; }
+/* ── MAGNITUDE-SIZED HEATMAP TILES (superseded by treemap below, kept harmless/unused) ── */
 </style>
 </head>
 <body>
@@ -206,7 +182,14 @@ body.light-theme .txt-flat { color: #ffffff; }
 
 <div class="page active" id="p1">
   <div class="status" id="hm-status"><span>Real-time sector performance matrix. Sort order aligns with highest daily relative momentum.</span></div>
+  <div class="tm-legend">
+    <span>Bearish</span>
+    <div class="tm-legend-bar"></div>
+    <span>Bullish</span>
+    <span class="tm-legend-note">Tile size ∝ market cap · click a stock for its chart</span>
+  </div>
   <div id="heatmap-container"></div>
+  <div id="tm-tooltip"></div>
 </div>
 
 <div class="page" id="p2">
@@ -376,6 +359,7 @@ async function fetchMarketDataBatch() {
           pcache[q.symbol] = {
             price: q.regularMarketPrice || 0,
             pct: q.regularMarketChangePercent || 0,
+            marketCap: typeof q.marketCap === 'number' ? q.marketCap : 0,
             ts: Date.now()
           };
         });
@@ -415,56 +399,137 @@ function flashUpdatedCards(oldPrices) {
   });
 }
 
-// ── HEATMAP UI GENERATOR ──
-function getMatrixClass(pct) {
-  if (pct >= 4.0) return 'bg-super-green';
-  if (pct >= 1.5) return 'bg-mid-green';
-  if (pct > 0.2)  return 'bg-light-green';
-  if (pct >= -0.2 && pct <= 0.2) return 'bg-flat';
-  if (pct >= -1.5) return 'bg-light-red';
-  if (pct >= -4.0) return 'bg-mid-red';
-  return 'bg-super-red';
+// ── TRUE NESTED TREEMAP ENGINE (D3, market-cap sized, continuous color) ──
+const tmColorScale = d3.scaleLinear()
+  .domain([-6, -2, -0.15, 0.15, 2, 6])
+  .range(['#7f1d1d', '#c0392b', '#33334d', '#33334d', '#15803d', '#22c55e'])
+  .interpolate(d3.interpolateRgb)
+  .clamp(true);
+
+function xmlEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function attrEsc(s) { return xmlEsc(s).replace(/"/g, '&quot;'); }
+function r1(n) { return Math.round(n * 10) / 10; }
+
+function buildTreemapData() {
+  const children = SECTORS.map(sec => {
+    const comps = sec.companies.filter(c => pcache[c.sym] && typeof pcache[c.sym].price === 'number');
+    if (!comps.length) return null;
+    const rawVals = comps.map(c => {
+      const d = pcache[c.sym];
+      const mc = (typeof d.marketCap === 'number' && d.marketCap > 0) ? d.marketCap : 5e9;
+      return Math.sqrt(mc); // dampen 1000x+ market-cap spread so small-caps don't get squeezed out
+    });
+    const maxVal = Math.max(...rawVals);
+    // floor every leaf at 22% of its sector's largest name, so no single stock's tile
+    // rounds down to an unclickable sliver in crowded sectors (e.g. IT's 13 companies)
+    const floor = maxVal * 0.22;
+    return {
+      name: sec.name, id: sec.id, icon: sec.icon,
+      children: comps.map((c, i) => {
+        const d = pcache[c.sym];
+        return { name: c.name, sym: c.sym, pct: d.pct || 0, value: Math.max(rawVals[i], floor) };
+      })
+    };
+  }).filter(Boolean);
+  return { name: 'root', children };
 }
-function getMatrixTextClass(pct) {
-  if (pct > 0.2) return 'txt-green';
-  if (pct >= -0.2 && pct <= 0.2) return 'txt-flat';
-  return 'txt-red';
-}
-function getSizeClass(pct) {
-  const a = Math.abs(pct);
-  if (a >= 4) return 'hm-xl';
-  if (a >= 2) return 'hm-lg';
-  return '';
-}
+
+let tmResizeTimer = null;
 
 function renderHeatmap() {
-  let sectorMetrics = [];
-  SECTORS.forEach(sec => {
-    const activeComps = sec.companies.filter(c => pcache[c.sym] && typeof pcache[c.sym].price === 'number');
-    if(activeComps.length === 0) return;
+  const container = $('heatmap-container');
+  if (!container) return;
+  const data = buildTreemapData();
 
-    let cumulativePct = 0;
-    activeComps.forEach(c => cumulativePct += pcache[c.sym].pct);
-    sectorMetrics.push({
-      id: sec.id, name: sec.name, icon: sec.icon, count: activeComps.length,
-      avgPct: activeComps.length > 0 ? (cumulativePct / activeComps.length) : 0,
-      industries: sec.industries
-    });
+  if (!data.children.length) {
+    container.innerHTML = `<div class="empty"><div class="ei">📡</div><div>Waiting for price data to sync…</div></div>`;
+    return;
+  }
+
+  const width = Math.max(320, container.clientWidth || (window.innerWidth - 48));
+  const isMobile = width < 640;
+  const height = isMobile ? Math.round(width * 1.35) : Math.round(Math.min(820, Math.max(520, width * 0.48)));
+
+  const root = d3.hierarchy(data).sum(d => d.value).sort((a, b) => b.value - a.value);
+
+  d3.treemap()
+    .tile(d3.treemapSquarify.ratio(1.4))
+    .size([width, height])
+    .paddingOuter(4)
+    .paddingTop(d => d.depth === 1 ? 24 : 0)
+    .paddingInner(2)
+    .round(false)(root);
+
+  let svg = `<svg class="treemap-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`;
+
+  root.children.forEach(sec => {
+    const x0 = r1(sec.x0), y0 = r1(sec.y0), sw = r1(sec.x1 - sec.x0), sh = r1(sec.y1 - sec.y0);
+    if (sw <= 0 || sh <= 0) return;
+    svg += `<rect class="tm-sector-rect" x="${x0}" y="${y0}" width="${sw}" height="${sh}"></rect>`;
+    svg += `<rect class="tm-sector-label-bg" data-secid="${attrEsc(sec.data.id)}" x="${x0}" y="${y0}" width="${sw}" height="22"></rect>`;
+    const label = `${sec.data.icon} ${sec.data.name}`;
+    const maxChars = Math.max(4, Math.floor(sw / 6.5));
+    const labelOut = label.length > maxChars ? label.slice(0, maxChars - 1) + '…' : label;
+    svg += `<text class="tm-sector-label-text" data-secid="${attrEsc(sec.data.id)}" x="${x0 + 8}" y="${y0 + 15}" font-size="11">${xmlEsc(labelOut)}</text>`;
   });
 
-  sectorMetrics.sort((a, b) => b.avgPct - a.avgPct);
-  $('heatmap-container').innerHTML = `<div class="heatmap-grid">` + sectorMetrics.map(sec => {
-    const bgCls = getMatrixClass(sec.avgPct);
-    const textCls = getMatrixTextClass(sec.avgPct);
-    const sizeCls = getSizeClass(sec.avgPct);
-    const formattedPct = (sec.avgPct >= 0 ? '+' : '') + sec.avgPct.toFixed(2) + '%';
-    
-    return `<div class="heatmap-card ${bgCls} ${sizeCls}" onclick="focusSectorInScreener('${sec.id}')">
-        <div><div class="heatmap-symbol">${sec.icon} ${sec.name}</div><div class="heatmap-sub">${sec.industries.slice(0,2).join(' · ')}</div></div>
-        <div class="heatmap-pct ${textCls}">${formattedPct}</div>
-      </div>`;
-  }).join('') + `</div>`;
+  root.leaves().forEach(leaf => {
+    const x0 = r1(leaf.x0), y0 = r1(leaf.y0), w = r1(leaf.x1 - leaf.x0), h = r1(leaf.y1 - leaf.y0);
+    if (w <= 0 || h <= 0) return;
+    const pct = leaf.data.pct;
+    const fill = tmColorScale(pct);
+    svg += `<rect class="tm-leaf-rect" data-sym="${attrEsc(leaf.data.sym)}" data-name="${attrEsc(leaf.data.name)}" x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${fill}"></rect>`;
+    if (w > 44 && h > 24) {
+      const symShort = leaf.data.sym.replace('.NS', '');
+      const maxSymChars = Math.max(2, Math.floor(w / 7.5));
+      const symOut = symShort.length > maxSymChars ? symShort.slice(0, maxSymChars) : symShort;
+      const symFs = Math.min(13, Math.max(9, w / 9));
+      svg += `<text class="tm-leaf-text-sym" x="${x0 + 6}" y="${y0 + 16}" font-size="${symFs}">${xmlEsc(symOut)}</text>`;
+      if (h > 38) {
+        const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+        const pctFs = Math.min(14, Math.max(9, w / 8));
+        svg += `<text class="tm-leaf-text-pct" x="${x0 + 6}" y="${y0 + h - 8}" font-size="${pctFs}">${pctStr}</text>`;
+      }
+    }
+  });
+
+  svg += `</svg>`;
+  container.innerHTML = svg;
+  wireTreemapInteractions(container);
 }
+
+function wireTreemapInteractions(container) {
+  container.onclick = (e) => {
+    const leaf = e.target.closest('.tm-leaf-rect');
+    if (leaf) { oc(leaf.dataset.sym, leaf.dataset.name); return; }
+    const label = e.target.closest('.tm-sector-label-bg, .tm-sector-label-text');
+    if (label) { focusSectorInScreener(label.dataset.secid); }
+  };
+  container.onmousemove = (e) => {
+    const tip = $('tm-tooltip');
+    const leaf = e.target.closest('.tm-leaf-rect');
+    if (!leaf) { if (tip) tip.style.display = 'none'; return; }
+    const sym = leaf.dataset.sym;
+    const d = pcache[sym] || {};
+    const pctVal = d.pct || 0;
+    const pctStr = (pctVal >= 0 ? '+' : '') + pctVal.toFixed(2) + '%';
+    const priceStr = d.price ? '₹' + d.price.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—';
+    tip.innerHTML = `<div class="tt-name">${leaf.dataset.name}</div><div class="tt-sym">${sym.replace('.NS','')}</div><div class="tt-row"><span>${priceStr}</span><span style="color:${pctVal>=0?'var(--green)':'var(--red)'}">${pctStr}</span></div>`;
+    tip.style.display = 'block';
+    const pad = 16;
+    let left = e.clientX + pad, top = e.clientY + pad;
+    if (left + 190 > window.innerWidth) left = e.clientX - 190 - pad;
+    if (top + 80 > window.innerHeight) top = e.clientY - 80 - pad;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  };
+  container.onmouseleave = () => { const tip = $('tm-tooltip'); if (tip) tip.style.display = 'none'; };
+}
+
+window.addEventListener('resize', () => {
+  clearTimeout(tmResizeTimer);
+  tmResizeTimer = setTimeout(() => { if (pg === 'p1') renderHeatmap(); }, 200);
+});
 
 function focusSectorInScreener(sectorId) {
     sp('p2'); applyScreenerSort('gainers');
