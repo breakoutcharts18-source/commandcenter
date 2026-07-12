@@ -391,24 +391,20 @@ function flashUpdatedCards(oldPrices) {
 }
 
 // ── CONTINUOUS COLOR GRADIENT (deep red = big fall, neutral = flat, deep green = big gain) ──
-const PCT_COLOR_STOPS = [
-  [-5,   [127, 29, 29]],   // deep red
-  [-1,   [185, 28, 28]],   // red
-  [0,    [42, 42, 61]],    // neutral (no change)
-  [1,    [21, 128, 61]],   // mild green
-  [5,    [34, 197, 94]]    // deep green
-];
+// Single eased curve from NEUTRAL toward RED_MAX or GREEN_MAX by magnitude, symmetric by
+// construction (previous version hand-picked stops per side and red's were too close together,
+// so any move past -1% looked almost maximally red with no further room down to -5%).
+const GRAD_NEUTRAL = [42, 42, 61];
+const GRAD_RED_MAX = [220, 38, 38];
+const GRAD_GREEN_MAX = [34, 197, 94];
+const GRAD_CAP = 4; // % move that reaches full saturation; matches typical sector-average daily range
 function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
 function pctToColor(pct) {
-  const p = Math.max(-5, Math.min(5, pct || 0));
-  for (let i = 0; i < PCT_COLOR_STOPS.length - 1; i++) {
-    const [p0, c0] = PCT_COLOR_STOPS[i], [p1, c1] = PCT_COLOR_STOPS[i + 1];
-    if (p >= p0 && p <= p1) {
-      const t = (p - p0) / (p1 - p0);
-      return `rgb(${lerp(c0[0],c1[0],t)},${lerp(c0[1],c1[1],t)},${lerp(c0[2],c1[2],t)})`;
-    }
-  }
-  return 'rgb(42,42,61)';
+  const p = pct || 0;
+  const mag = Math.min(Math.abs(p), GRAD_CAP) / GRAD_CAP;
+  const t = Math.pow(mag, 0.6); // eased so small moves are still visibly tinted, not just barely-off-neutral
+  const target = p >= 0 ? GRAD_GREEN_MAX : GRAD_RED_MAX;
+  return `rgb(${lerp(GRAD_NEUTRAL[0], target[0], t)},${lerp(GRAD_NEUTRAL[1], target[1], t)},${lerp(GRAD_NEUTRAL[2], target[2], t)})`;
 }
 
 // ── UNIFORM HEATMAP GRID (every tile the same size; color carries the signal) ──
