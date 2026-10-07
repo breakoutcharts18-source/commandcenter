@@ -1,7 +1,491 @@
-<script>
-// BCT upgrade
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Breakouts Chart Terminal — Institutional Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#07070f;--surface:#0d0d1a;--s2:#11111f;--border:#1a1a2e;--text:#e2e2f0;--muted:#55557a;--dim:#2a2a45;--green:#4ade80;--gbdr:#16a34a;--red:#f87171;--rbdr:#dc2626;--yellow:#fbbf24;--blue:#60a5fa;--bdark:#1e3a6e;--modal-bg:rgba(0,0,0,0.88);--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+body.light-theme{--bg:#f8fafc;--surface:#fff;--s2:#f1f5f9;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--dim:#cbd5e1;--bdark:#e2e8f0;--blue:#2563eb;--modal-bg:rgba(248,250,252,0.88)}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;transition:background .2s,color .2s}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--dim);border-radius:4px}::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+nav{background:var(--bg);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:stretch;position:sticky;top:0;z-index:200;height:56px;transition:background .2s}
+.n-brand{display:flex;align-items:center;gap:10px;padding-right:16px;border-right:1px solid var(--border)}
+.n-logo{background:linear-gradient(135deg,#1a3a6b,#0e2044);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:900;color:var(--blue);letter-spacing:1px}
+.n-title{font-size:14px;font-weight:700;color:var(--text)}
+.n-sub{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+.n-tabs{display:flex;align-items:stretch;flex:1;padding:0 12px;gap:4px}
+.n-tab{background:none;border:none;cursor:pointer;font-family:inherit;padding:0 18px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;transition:all .15s}
+.n-tab:hover{color:var(--text)}.n-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.n-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.n-time{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+#theme-toggle{background:transparent;border:none;cursor:pointer;font-size:18px;margin-right:4px;transition:transform .2s;display:flex;align-items:center;justify-content:center}
+#theme-toggle:hover{transform:scale(1.1)}
+#btn-ref{background:var(--s2);border:1px solid var(--border);color:var(--blue);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:6px;transition:all .2s}
+#btn-ref:hover{background:var(--dim)}#btn-ref:disabled{opacity:.5;cursor:not-allowed}
+@keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin .8s linear infinite;display:inline-block}
+.page{display:none;padding:24px;max-width:1600px;margin:0 auto}
+.page.active{display:block;animation:fadeUp .3s ease forwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.status{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--muted);margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.cco{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:border-color .2s,box-shadow .2s;position:relative}
+.cco:hover{border-color:var(--dim);box-shadow:0 4px 12px rgba(0,0,0,.05)}
+.ctop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;padding-right:24px}
+.cname{font-size:13px;font-weight:700;color:var(--text)}
+.csym{font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono);letter-spacing:.3px}
+.cltp{font-size:14px;font-weight:800;color:var(--text);text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.cchg{font-size:11px;font-weight:700;margin-top:2px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.star-btn{position:absolute;right:14px;top:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--dim);transition:color .2s;z-index:10}
+.star-btn.starred{color:var(--yellow)}.star-btn:hover{color:var(--text)}
+.filters-bar{display:flex;gap:12px;margin-bottom:20px}.srch{position:relative;flex:1}
+.si{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px 16px 12px 40px;font-size:13px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
+.si:focus{border-color:var(--blue)}
+.si-select{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:0 16px;font-size:13px;color:var(--text);font-weight:600;outline:none;cursor:pointer}
+.sico{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+.acc{margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ah{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;cursor:pointer;background:var(--surface);transition:background .15s;user-select:none}
+.ah:hover{background:var(--s2)}.ah.open{background:var(--s2);border-bottom:1px solid var(--border)}
+.al{display:flex;align-items:center;gap:12px}.aico{font-size:18px}.atitle{font-size:14px;font-weight:700;color:var(--text)}.acount{font-size:11px;color:var(--muted);margin-top:2px}
+.ar{display:flex;align-items:center;gap:12px}
+.achip{font-size:11px;font-weight:700;border-radius:4px;padding:4px 10px;background:var(--bg);border:1px solid var(--border);color:var(--muted);min-width:60px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.achev{font-size:12px;color:var(--muted);transition:transform .2s}.ah.open .achev{transform:rotate(180deg)}
+.ab{display:none;padding:16px;background:var(--bg)}.ab.open{display:block}
+.empty{text-align:center;padding:60px 20px;color:var(--dim)}.empty .ei{font-size:48px;margin-bottom:12px}
+#cmodal{display:none;position:fixed;inset:0;background:var(--modal-bg);backdrop-filter:blur(2px);z-index:999;align-items:center;justify-content:center}
+#cmodal.open{display:flex}
+#cbox{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:min(900px,95vw);box-shadow:0 10px 40px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column}
+#chdr{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--s2)}
+#ccname{font-size:18px;font-weight:800;color:var(--text);letter-spacing:.5px}
+#ccsym{font-size:12px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
+#cltp_m{font-size:24px;font-weight:800;color:var(--text);font-family:var(--mono);font-variant-numeric:tabular-nums}
+#cchg_m{font-size:13px;font-weight:700;margin-top:4px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.chart-nav-group{display:flex;gap:6px;border-right:1px solid var(--border);padding-right:16px;margin-right:4px}
+.nav-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:6px;font-size:20px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;padding-bottom:3px}
+.nav-btn:hover:not(:disabled){color:var(--text);background:var(--dim);border-color:var(--muted)}.nav-btn:disabled{opacity:.3;cursor:not-allowed}
+.chart-controls{padding:12px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.chart-badge{background:var(--bg);color:var(--blue);font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;border:1px solid var(--blue)}
+.tb-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.tb-btn:hover{color:var(--text);border-color:var(--dim)}.tb-btn.active{background:var(--dim);color:var(--text);border-color:var(--muted)}
+#cchartc{padding:16px;position:relative}#lwc{width:100%;height:420px}
+#cload{display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);gap:12px;flex-direction:column;z-index:10}
+.cspn{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+#cclose{background:var(--bg);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+#cclose:hover{color:var(--text);background:var(--dim)}
+.apexcharts-legend{display:none!important}
+@keyframes flashUp{0%{background-color:rgba(74,222,128,.32)}100%{background-color:transparent}}
+@keyframes flashDown{0%{background-color:rgba(248,113,113,.32)}100%{background-color:transparent}}
+.cco.flash-up{animation:flashUp 1.1s ease-out}.cco.flash-down{animation:flashDown 1.1s ease-out}
+</style>
+</head>
+<body>
 
-// 1) Inject styles + replace Sector Heatmap page markup
+<nav>
+  <div class="n-brand"><div class="n-logo">BCT</div><div><div class="n-title">Breakouts Chart Terminal</div><div class="n-sub" id="nsub">Loading…</div></div></div>
+  <div class="n-tabs">
+    <button class="n-tab active" data-p="p1" onclick="sp('p1')">🔥 Sector Heatmap</button>
+    <button class="n-tab" data-p="p2" onclick="sp('p2')">🗂️ Full List</button>
+    <button class="n-tab" data-p="p_watch" onclick="sp('p_watch')">⭐ Watchlist (<span id="wl-count">0</span>)</button>
+  </div>
+  <div class="n-right">
+    <button id="theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark Mode">☀️</button>
+    <span class="n-time" id="ntime"></span>
+    <button id="btn-ref" onclick="refresh()"><span id="spin">⟳</span> <span id="btxt">Sync Terminal</span></button>
+  </div>
+</nav>
+
+<div class="page active" id="p1">
+  <div class="hb-toolbar" id="hb-toolbar"></div>
+  <div class="status" id="hm-status"><span>Ranked sector / theme performance. Click a row to see its stocks.</span></div>
+  <div id="heatmap-container"></div>
+</div>
+
+<div class="page" id="p2">
+  <div class="status"><span>Live institutional pricing infrastructure</span></div>
+  <div class="filters-bar">
+    <div class="srch"><span class="sico">🔍</span><input class="si" id="srch" placeholder="Search by company name, symbol, or theme tag..." oninput="filt(this.value)"/></div>
+    <select class="si-select" id="sort-select" onchange="applyScreenerSort(this.value)">
+      <option value="gainers" selected>📈 Sort: Top Gainers (By Section)</option>
+      <option value="losers">📉 Sort: Top Losers (By Section)</option>
+      <option value="alpha">🔡 Sort: Alphabetical (A-Z)</option>
+    </select>
+  </div>
+  <div id="accs"></div>
+  <div class="empty" id="emp2" style="display:none"><div class="ei">🏢</div><div>No results found</div></div>
+</div>
+
+<div class="page" id="p_watch">
+  <div class="status"><span>Isolate focus setups. System persistence automatically retained within browser local storage profiles.</span></div>
+  <div class="cgrid" id="watch-grid"></div>
+  <div class="empty" id="emp_watch" style="display:none"><div class="ei">⭐</div><div>Watchlist empty.<br><br>Toggle the star icon on any stock card to track it here.</div></div>
+</div>
+
+<div id="cmodal" onclick="cmc(event)">
+  <div id="cbox">
+    <div id="chdr">
+      <div><div id="ccname">—</div><div id="ccsym">—</div></div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="text-align:right;margin-right:8px"><div id="cltp_m">—</div><div id="cchg_m">—</div></div>
+        <div class="chart-nav-group">
+          <button class="nav-btn" id="btn-prev" onclick="navChart(-1)" title="Previous Chart (Left Arrow)">‹</button>
+          <button class="nav-btn" id="btn-next" onclick="navChart(1)" title="Next Chart (Right Arrow)">›</button>
+        </div>
+        <button id="cclose" onclick="cc()">✕</button>
+      </div>
+    </div>
+    <div class="chart-controls"><div class="chart-badge">DAILY CORE TIMEFRAME • 1-YEAR SCOPE</div><button class="tb-btn" id="btn-sma" onclick="tsma(this)">Overlay 20 SMA</button></div>
+    <div id="cchartc"><div id="lwc"></div><div id="cload"></div></div>
+  </div>
+</div>
+
+<script>
+// ── SECTOR DATA (compact: id, name, icon, color, industries, "SYMBOL|Company;SYMBOL|Company"; ".NS" is added automatically) ──
+const RAW = [
+['defence_pvt','Defence — Private','🛡️','#3b82f6','Drones,Electronics,Missiles,Systems Integration,Ship Building',`ASTRAMICRO|Astra Microwave Products Limited;APOLLO|Apollo Micro Systems Limited;DATAPATTNS|Data Patterns (India) Limited;IDEAFORGE|Ideaforge Technology Limited;ZENTEC|Zen Technologies Limited;PARAS|Paras Defence and Space Technologies Limited;SWANDEF|Swan Defence and Heavy Industries Limited;SIKA|Sika Interplant Systems Limited;MIDHANI|Mishra Dhatu Nigam Limited;BDL|Bharat Dynamics Limited;MTARTECH|Mtar Technologies Limited`],
+['defence_psu','Defence — PSU','⚔️','#1d4ed8','Aerospace,Electronics,Shipbuilding,Ammunition,Vehicles',`HAL|Hindustan Aeronautics Limited;BEL|Bharat Electronics Limited;BEML|BEML Limited;BDL|Bharat Dynamics Limited;GRSE|Garden Reach Shipbuilders & Engineers Limited;COCHINSHIP|Cochin Shipyard Limited;MAZDOCK|Mazagon Dock Shipbuilders Limited;MIDHANI|Mishra Dhatu Nigam Limited;ITI|ITI Limited`],
+['psu_bank','PSU Banks','🏦','#f59e0b','Retail Banking,Corporate Lending,Agriculture Credit,MSME,Trade Finance',`SBIN|State Bank of India;BANKBARODA|Bank of Baroda;BANKINDIA|Bank of India;CANBK|Canara Bank;PNB|Punjab National Bank;UNIONBANK|Union Bank of India;UCOBANK|UCO Bank;CENTRALBK|Central Bank of India;MAHABANK|Bank of Maharashtra;INDIANB|Indian Bank`],
+['pvt_bank','Private Banks','🏛️','#06b6d4','Retail Banking,Wealth Mgmt,Credit Cards,Home Loans,Digital Banking',`HDFCBANK|HDFC Bank Limited;ICICIBANK|ICICI Bank Limited;AXISBANK|Axis Bank Limited;KOTAKBANK|Kotak Mahindra Bank Limited;INDUSINDBK|IndusInd Bank Limited;FEDERALBNK|The Federal Bank  Limited;IDFCFIRSTB|IDFC First Bank Limited;YESBANK|Yes Bank Limited;RBLBANK|RBL Bank Limited;DCBBANK|DCB Bank Limited;CSBBANK|CSB Bank Limited;KTKBANK|The Karnataka Bank Limited`],
+['sfb','Small Finance Banks','🏧','#8b5cf6','Microfinance,SME Loans,Savings Accounts,Rural Credit,MSME',`AUBANK|AU Small Finance Bank Limited;CAPITALSFB|Capital Small Finance Bank Limited;EQUITASBNK|Equitas Small Finance Bank Limited;ESAFSFB|ESAF Small Finance Bank Limited;SURYODAY|Suryoday Small Finance Bank Limited;UJJIVANSFB|Ujjivan Small Finance Bank Limited;UTKARSHBNK|Utkarsh Small Finance Bank Limited;JSFB|Jana Small Finance Bank Limited`],
+['nbfc','NBFCs & Microfinance','💳','#a855f7','Consumer Loans,Gold Loans,Vehicle Finance,Micro-credit,Housing Finance',`BAJFINANCE|Bajaj Finance Limited;BAJAJFINSV|Bajaj Finserv Limited;MUTHOOTFIN|Muthoot Finance Limited;SHRIRAMFIN|Shriram Finance Limited;MANAPPURAM|Manappuram Finance Limited;CHOLAFIN|Cholamandalam Investment and Finance Company ;M&MFIN|Mahindra & Mahindra Financial Services Limite;POONAWALLA|Poonawalla Fincorp Limited;CREDITACC|CREDITACCESS GRAMEEN LIMITED;SPANDANA|Spandana Sphoorty Financial Limited;SATIN|Satin Creditcare Network Limited;FUSION|Fusion Finance Limited`],
+['insurance','Insurance','🛡️','#ec4899','Life Insurance,General Insurance,Health Insurance,Reinsurance,Crop Insurance',`HDFCLIFE|HDFC Life Insurance Company Limited;SBILIFE|SBI Life Insurance Company Limited;ICICIPRULI|ICICI Prudential Life Insurance Company Limit;GICRE|General Insurance Corporation of India;NIACL|The New India Assurance Company Limited;STARHEALTH|Star Health and Allied Insurance Company Limi;LICI|Life Insurance Corporation Of India`],
+['amc','AMC, Broking & Exchanges','📈','#f97316','Asset Management,Stock Broking,Commodities,Depositories,Wealth Advisory',`HDFCAMC|HDFC Asset Management Company Limited;NAM-INDIA|Nippon Life India Asset Management Limited;UTIAMC|UTI Asset Management Company Limited;360ONE|360 ONE WAM LIMITED;MOTILALOFS|Motilal Oswal Financial Services Limited;ANGELONE|Angel One Limited;5PAISA|5Paisa Capital Limited;BSE|BSE Limited;MCX|Multi Commodity Exchange of India Limited;CDSL|Central Depository Services (India) Limited;IIFLCAPS|IIFL Capital Services Limited;GEOJITFSL|Geojit Financial Services Limited`],
+['it','IT & Software','💻','#3b82f6','IT Services,Software Products,BPO/ITeS,Cloud,Cybersecurity',`TCS|Tata Consultancy Services Limited;INFY|Infosys Limited;WIPRO|Wipro Limited;HCLTECH|HCL Technologies Limited;TECHM|Tech Mahindra Limited;MPHASIS|MphasiS Limited;PERSISTENT|Persistent Systems Limited;COFORGE|Coforge Limited;KPITTECH|KPIT Technologies Limited;MASTEK|Mastek Limited;NIITLTD|NIIT Limited;HEXT|Hexaware Technologies Limited;NIITMTS|NIIT Learning Systems Limited`],
+['pharma','Pharma & Bulk Drugs','💊','#10b981','Formulations,Bulk Drugs,APIs,Biosimilars,CRO/CDMO',`SUNPHARMA|Sun Pharmaceutical Industries Limited;DRREDDY|Dr. Reddy's Laboratories Limited;CIPLA|Cipla Limited;DIVISLAB|Divi's Laboratories Limited;LUPIN|Lupin Limited;AUROPHARMA|Aurobindo Pharma Limited;AJANTPHARM|Ajanta Pharma Limited;APLLTD|Alembic Pharmaceuticals Limited;IPCALAB|IPCA Laboratories Limited;ALEMBICLTD|Alembic Limited;ASTRAZEN|AstraZeneca Pharma India Limited;GLENMARK|Glenmark Pharmaceuticals Limited;GRANULES|Granules India Limited`],
+['hospital','Hospitals','🏥','#14b8a6','Multi-specialty,Single-specialty,Oncology,Eye Care,IVF',`APOLLOHOSP|Apollo Hospitals Enterprise Limited;FORTIS|Fortis Healthcare Limited;MAXHEALTH|Max Healthcare Institute Limited;NH|Narayana Hrudayalaya Ltd.;ASTERDM|Aster DM Healthcare Limited;KIMS|Krishna Institute of Medical Sciences Limited;SHALBY|Shalby Limited;VIJAYA|Vijaya Diagnostic Centre Limited;AGARWALEYE|Dr. Agarwal's Health Care Limited;DRAGARWQ|Dr Agarwals Eye Hospital Limited;GAUDIUMIVF|Gaudium IVF and Women Health Limited`],
+['diagnostics','Diagnostics & Labs','🔬','#06b6d4','Pathology,Radiology,Genetic Testing,Home Collection,Wellness',`METROPOLIS|Metropolis Healthcare Limited;LALPATHLAB|Dr. Lal Path Labs Ltd.;THYROCARE|Thyrocare Technologies Limited;KRSNAA|Krsnaa Diagnostics Limited;VIJAYA|Vijaya Diagnostic Centre Limited`],
+['paint','Paints','🎨','#f43f5e','Decorative,Industrial,Auto Refinish,Construction Coatings,Waterproofing',`ASIANPAINT|Asian Paints Limited;BERGEPAINT|Berger Paints (I) Limited;KANSAINER|Kansai Nerolac Paints Limited;INDIGOPNTS|Indigo Paints Limited;SHALPAINTS|Shalimar Paints Limited;SIRCA|Sirca Paints India Limited`],
+['chem','Chemicals & Specialty','⚗️','#84cc16','Specialty Chemicals,Fluorochemicals,Agrochemicals,Dyes & Pigments,Performance Chemicals',`PIDILITIND|Pidilite Industries Limited;SRF|SRF Limited;DEEPAKNTR|Deepak Nitrite Limited;AARTIIND|Aarti Industries Limited;NAVINFLUOR|Navin Fluorine International Limited;TATACHEM|Tata Chemicals Limited;SUDARSCHEM|Sudarshan Chemical Industries Limited;ALKYLAMINE|Alkyl Amines Chemicals Limited;AKSHARCHEM|AksharChem India Limited;CHEMCON|Chemcon Speciality Chemicals Limited;CHEMBOND|Chembond Material Technologies Limited`],
+['fmcg','FMCG','🛒','#f59e0b','Personal Care,Food & Beverages,Tobacco,Household Products,Dairy',`HINDUNILVR|Hindustan Unilever Limited;ITC|ITC Limited;NESTLEIND|Nestle India Limited;BRITANNIA|Britannia Industries Limited;DABUR|Dabur India Limited;GODREJCP|Godrej Consumer Products Limited;MARICO|Marico Limited;COLPAL|Colgate Palmolive (India) Limited;EMAMILTD|Emami Limited;TATACONSUM|TATA CONSUMER PRODUCTS LIMITED;VBL|Varun Beverages Limited`],
+['auto','Automobiles','🚗','#f97316','Passenger Vehicles,2-Wheelers,Commercial Vehicles,EVs,Tractors',`MARUTI|Maruti Suzuki India Limited;M&M|Mahindra & Mahindra Limited;HEROMOTOCO|Hero MotoCorp Limited;BAJAJ-AUTO|Bajaj Auto Limited;TVSMOTOR|TVS Motor Company Limited;EICHERMOT|Eicher Motors Limited;ASHOKLEY|Ashok Leyland Limited;OLECTRA|Olectra Greentech Limited;FORCEMOT|FORCE MOTORS LTD;ESCORTS|Escorts Kubota Limited`],
+['auto_anc','Auto Ancillaries','⚙️','#6b7280','Tyres,Engine Parts,Electrical Systems,Exhaust Systems,Fasteners',`BOSCHLTD|Bosch Limited;MOTHERSON|Samvardhana Motherson International Limited;EXIDEIND|Exide Industries Limited;APOLLOTYRE|Apollo Tyres Limited;MRF|MRF Limited;BALKRISIND|Balkrishna Industries Limited;SUNDRMFAST|Sundram Fasteners Limited;ENDURANCE|Endurance Technologies Limited;SUBROS|Subros Limited;MSUMI|Motherson Sumi Wiring India Limited`],
+['steel','Steel & Metals','🔩','#9ca3af','Flat Steel,Long Steel,Stainless Steel,Aluminium,Copper',`TATASTEEL|Tata Steel Limited;JSWSTEEL|JSW Steel Limited;HINDALCO|Hindalco Industries Limited;VEDL|Vedanta Limited;SAIL|Steel Authority of India Limited;NMDC|NMDC Limited;APLAPOLLO|APL Apollo Tubes Limited;RATNAMANI|Ratnamani Metals & Tubes Limited;JSL|Jindal Stainless Limited;HINDCOPPER|Hindustan Copper Limited;NATIONALUM|National Aluminium Company Limited;JINDALSTEL|JINDAL STEEL LIMITED`],
+['cement','Cement','🏗️','#78716c','OPC,PPC,Blended Cement,RMC,Clinker',`ULTRACEMCO|UltraTech Cement Limited;AMBUJACEM|Ambuja Cements Limited;ACC|ACC Limited;SHREECEM|SHREE CEMENT LIMITED;RAMCOCEM|The Ramco Cements Limited;JKCEMENT|JK Cement Limited;JKLAKSHMI|JK Lakshmi Cement Limited;ORIENTCEM|Orient Cement Limited;JSWCEMENT|JSW Cement Limited;HEIDELBERG|HeidelbergCement India Limited;INDIACEM|The India Cements Limited;DECCANCE|Deccan Cements Limited`],
+['realty','Real Estate','🏢','#ec4899','Residential,Commercial,Retail/Malls,REITs,Affordable Housing',`DLF|DLF Limited;GODREJPROP|Godrej Properties Limited;OBEROIRLTY|Oberoi Realty Limited;PRESTIGE|Prestige Estates Projects Limited;PHOENIXLTD|The Phoenix Mills Limited;LODHA|Lodha Developers Limited;BRIGADE|Brigade Enterprises Limited;SOBHA|Sobha Limited;KOLTEPATIL|Kolte - Patil Developers Limited;MAHLIFE|Mahindra Lifespace Developers Limited;AJMERA|Ajmera Realty & Infra India Limited`],
+['infra','Infrastructure','🌉','#22d3ee','Roads,Bridges,Ports,Airports,Smart Cities',`LT|Larsen & Toubro Limited;ADANIPORTS|Adani Ports and Special Economic Zone Limited;GMRAIRPORT|GMR AIRPORTS LIMITED;IRB|IRB Infrastructure Developers Limited;NCC|NCC Limited;ASHOKA|Ashoka Buildcon Limited;IRCON|Ircon International Limited;KNRCON|KNR Constructions Limited;PNCINFRA|PNC Infratech Limited`],
+['railway','Railways','🚂','#a78bfa','Wagons,Locos,EPC,Finance,Tourism/Ticketing',`RVNL|Rail Vikas Nigam Limited;IRFC|Indian Railway Finance Corporation Limited;IRCTC|Indian Railway Catering And Tourism Corporati;RAILTEL|Railtel Corporation Of India Limited;IRCON|Ircon International Limited;TITAGARH|TITAGARH RAIL SYSTEMS LIMITED;TEXRAIL|Texmaco Rail & Engineering Limited;JWL|Jupiter Wagons Limited;BEML|BEML Limited`],
+['power','Power & Renewables','⚡','#fbbf24','Thermal,Hydro,Solar,Wind,Power Finance',`NTPC|NTPC Limited;POWERGRID|Power Grid Corporation of India Limited;ADANIGREEN|Adani Green Energy Limited;ADANIPOWER|Adani Power Limited;TATAPOWER|Tata Power Company Limited;TORNTPOWER|Torrent Power Limited;CESC|CESC Limited;NHPC|NHPC Limited;SJVN|SJVN Limited;JSWENERGY|JSW Energy Limited;RPOWER|Reliance Power Limited;NTPCGREEN|NTPC Green Energy Limited;INOXWIND|Inox Wind Limited;IREDA|Indian Renewable Energy Development Agency Li`],
+['oil','Oil & Gas','🛢️','#d97706','Exploration,Refining,Gas Distribution,Lubricants,Pipelines',`RELIANCE|Reliance Industries Limited;ONGC|Oil & Natural Gas Corporation Limited;BPCL|Bharat Petroleum Corporation Limited;IOC|Indian Oil Corporation Limited;GAIL|GAIL (India) Limited;OIL|Oil India Limited;MRPL|Mangalore Refinery and Petrochemicals Limited;PETRONET|Petronet LNG Limited;GULFOILLUB|Gulf Oil Lubricants India Limited`],
+['pse','PSU / PSE Enterprises','🏛️','#64748b','Heavy Electricals,Coal,Minerals,Housing Finance,FIs',`BHEL|Bharat Heavy Electricals Limited;COALINDIA|Coal India Limited;SAIL|Steel Authority of India Limited;NBCC|NBCC (India) Limited;HUDCO|Housing & Urban Development Corporation Limit;MOIL|MOIL Limited;PFC|Power Finance Corporation Limited;RECLTD|REC Limited;IREDA|Indian Renewable Energy Development Agency Li;NMDC|NMDC Limited;NLCINDIA|NLC India Limited`],
+['telecom','Telecom','📡','#0ea5e9','Mobile Services,Broadband,Optical Fibre,Tower,Enterprise',`BHARTIARTL|Bharti Airtel Limited;IDEA|Vodafone Idea Limited;TTML|Tata Teleservices (Maharashtra) Limited;HFCL|HFCL Limited;STLTECH|Sterlite Technologies Limited;TEJASNET|Tejas Networks Limited;ITI|ITI Limited`],
+['consumer_dur','Consumer Durables','📺','#0891b2','Home Appliances,AC & Cooling,Wearables,Lighting,Kitchen Appliances',`HAVELLS|Havells India Limited;VOLTAS|Voltas Limited;TITAN|Titan Company Limited;WHIRLPOOL|Whirlpool of India Limited;BLUESTARCO|Blue Star Limited;CROMPTON|Crompton Greaves Consumer Electricals Limited;VGUARD|V-Guard Industries Limited;POLYCAB|Polycab India Limited;DIXON|Dixon Technologies (India) Limited;AMBER|Amber Enterprises India Limited;BAJAJELEC|Bajaj Electricals Limited`],
+['cables','Cables & Wires','🔌','#7c3aed','Power Cables,Data Cables,Optical Fibre,Wiring Devices,Switchgear',`POLYCAB|Polycab India Limited;KEI|KEI Industries Limited;HAVELLS|Havells India Limited;FINCABLES|Finolex Cables Limited;STLTECH|Sterlite Technologies Limited;VGUARD|V-Guard Industries Limited;SUPREMEIND|Supreme Industries Limited`],
+['logistics','Logistics & Shipping','🚢','#0369a1','Express Logistics,Container Ports,Cold Chain,Freight,3PL',`CONCOR|Container Corporation of India Limited;DELHIVERY|Delhivery Limited;BLUEDART|Blue Dart Express Limited;MAHLOG|Mahindra Logistics Limited;TVSSCS|TVS Supply Chain Solutions Limited;ALLCARGO|Allcargo Logistics Limited;SCI|Shipping Corporation Of India Limited`],
+['aviation','Aviation & Airports','✈️','#2563eb','Airlines,Ground Handling,MRO,Airports,Cargo',`INDIGO|InterGlobe Aviation Limited;GMRAIRPORT|GMR AIRPORTS LIMITED;GMRP&UI|GMR Power and Urban Infra Limited;BLUEDART|Blue Dart Express Limited`],
+['media','Media & Entertainment','📽️','#db2777','Broadcasting,OTT,Music,Films,Multiplexes',`SUNTV|Sun TV Network Limited;ZEEL|Zee Entertainment Enterprises Limited;PVRINOX|PVR INOX Limited;NETWORK18|Network18 Media & Investments Limited;NAZARA|Nazara Technologies Limited;SAREGAMA|Saregama India Limited;TIPSMUSIC|Tips Music Limited`],
+['hospitality','Hotels & Hospitality','🏨','#be185d','Luxury Hotels,Budget Hotels,Resorts,Restaurant Chains,Tourism',`INDHOTEL|The Indian Hotels Company Limited;EIHOTEL|EIH Limited;ITCHOTELS|ITC Hotels Limited;CHALET|Chalet Hotels Limited;LEMONTREE|Lemon Tree Hotels Limited;TAJGVK|Taj GVK Hotels & Resorts Limited;ADVANIHOTR|Advani Hotels & Resorts (India) Limited;BRIGHOTEL|Brigade Hotel Ventures Limited`],
+['jewellery','Jewellery & Retail','💎','#d97706','Gold Jewellery,Diamond,Organised Retail,Lifestyle,Watches',`TITAN|Titan Company Limited;KALYANKJIL|Kalyan Jewellers India Limited;SENCO|Senco Gold Limited;PCJEWELLER|PC Jeweller Limited;RAJESHEXPO|Rajesh Exports Limited;TBZ|Tribhovandas Bhimji Zaveri Limited;THANGAMAYL|Thangamayil Jewellery Limited;PNGJL|P N Gadgil Jewellers Limited`],
+['textiles','Textiles & Garments','👘','#9333ea','Cotton Yarn,Man-Made Fibre,Garments,Technical Textiles,Home Textiles',`RAYMOND|Raymond Limited;ARVIND|Arvind Limited;TRIDENT|Trident Limited;HIMATSEIDE|Himatsingka Seide Limited;KITEX|Kitex Garments Limited;NITINSPIN|Nitin Spinners Limited;BOMDYEING|Bombay Dyeing & Mfg Company Limited;GRASIM|Grasim Industries Limited`],
+['agri','Agri & Fertilisers','🌾','#65a30d','Fertilisers,Pesticides,Seeds,Crop Protection,Agri Input',`COROMANDEL|Coromandel International Limited;CHAMBLFERT|Chambal Fertilizers & Chemicals Limited;GSFC|Gujarat State Fertilizers & Chemicals Limited;RCF|Rashtriya Chemicals and Fertilizers Limited;NFL|National Fertilizers Limited;PIIND|PI Industries Limited;DHANUKA|Dhanuka Agritech Limited;GODREJAGRO|Godrej Agrovet Limited;BAYERCROP|Bayer Cropscience Limited;ZUARI|Zuari Agro Chemicals Limited;RALLIS|Rallis India Limited`],
+['new_age_tech','New-Age Tech & Internet','🚀','#6366f1','E-Commerce,Food Delivery,Fintech,Travel Tech,Local Search',`ETERNAL|Eternal Limited;NYKAA|FSN E-Commerce Ventures Limited;PAYTM|One97 Communications Limited;POLICYBZR|PB Fintech Limited;SWIGGY|Swiggy Limited;CARTRADE|CarTrade Tech Limited;EASEMYTRIP|Easy Trip Planners Limited;IXIGO|Le Travenues Technology Limited;MAPMYINDIA|C.E. Info Systems Limited;HONASA|Honasa Consumer Limited`],
+['qsr','QSR & Restaurants','🍔','#ea580c','Quick Service Restaurants,Casual Dining,Food Franchising',`JUBLFOOD|Jubilant FoodWorks Limited;DEVYANI|Devyani International Limited;WESTLIFE|Westlife Foodworld Limited;SAPPHIRE|Sapphire Foods India Limited`],
+['packaging','Packaging & Glass','📦','#0d9488','Flexible Packaging,Rigid Packaging,Glass Containers',`UFLEX|Uflex Limited;TCPLPACK|TCPL Packaging Limited;AGI|AGI Greenpac Limited;COSMOFIRST|Cosmo First Limited`],
+['paper','Paper & Forest Products','📄','#a16207','Writing & Printing Paper,Newsprint,Packaging Board',`JKPAPER|JK Paper Limited;WSTCSTPAPR|West Coast Paper Mills Limited;TNPL|Tamil Nadu Newsprint and Papers Limited;SESHAPAPER|Seshasayee Paper and Boards Limited`],
+['sugar','Sugar & Agri-Processing','🌾','#ca8a04','Sugar,Ethanol,Agro Processing',`BALRAMCHIN|Balrampur Chini Mills Limited;DHAMPURSUG|Dhampur Sugar Mills Limited;TRIVENI|Triveni Engineering & Industries Limited;EIDPARRY|EID Parry (India) Limited;DALMIASUG|Dalmia Bharat Sugar and Industries Limited`],
+['spirits','Spirits & Breweries','🍺','#b45309','Alcoholic Beverages,Distilleries,Breweries',`UNITDSPR|United Spirits Limited;UBL|United Breweries Limited;RADICO|Radico Khaitan Limited;GLOBUSSPR|Globus Spirits Limited`],
+['footwear','Footwear & Leather','👟','#7c2d12','Footwear,Leather Goods,Athleisure',`BATAINDIA|Bata India Limited;RELAXO|Relaxo Footwears Limited;CAMPUS|Campus Activewear Limited;METROBRAND|Metro Brands Limited;LIBERTSHOE|Liberty Shoes Limited;MIRZAINT|Mirza International Limited`],
+['plastics_pipes','Plastics & Pipes','🧴','#0369a1','PVC Pipes,Plastic Products,Polymers',`ASTRAL|Astral Limited;FINPIPE|Finolex Industries Limited;PRINCEPIPE|Prince Pipes and Fittings Limited;NILKAMAL|Nilkamal Limited;SUPREMEIND|Supreme Industries Limited`],
+['water_utilities','Water & Waste Management','💧','#0891b2','Water Treatment,Waste Management,Environmental Services',`WABAG|VA Tech Wabag Limited;IONEXCHANG|Ion Exchange (India) Limited;EMSLIMITED|EMS Limited;THERMAX|Thermax Limited`],
+['diversified_holdco','Diversified & Holding Cos','🏛️','#475569','Conglomerates,Investment Holding',`ADANIENT|Adani Enterprises Limited;BAJAJHLDNG|Bajaj Holdings & Investment Limited;TATAINVEST|Tata Investment Corporation Limited;3MINDIA|3M India Limited`],
+['housing_finance','Housing Finance Companies','🏠','#c2410c','Home Loans,Affordable Housing Finance,Mortgage',`LICHSGFIN|LIC Housing Finance Limited;PNBHOUSING|PNB Housing Finance Limited;CANFINHOME|Can Fin Homes Limited;AAVAS|Aavas Financiers Limited;APTUS|Aptus Value Housing Finance India Limited;HOMEFIRST|Home First Finance Company India Limited`],
+['biotech','Biotechnology','🧬','#059669','Biosimilars,Contract Research,Life Sciences',`BIOCON|Biocon Limited;SYNGENE|Syngene International Limited;PANACEABIO|Panacea Biotec Limited`],
+['tobacco','Tobacco','🚬','#57534e','Cigarettes,Tobacco Products',`VSTIND|VST Industries Limited;GODFRYPHLP|Godfrey Phillips India Limited`],
+['city_gas','City Gas Distribution','🔥','#0e7490','Piped Natural Gas,CNG,Gas Transmission',`IGL|Indraprastha Gas Limited;MGL|Mahanagar Gas Limited;GUJGASLTD|Gujarat Gas Limited;GSPL|Gujarat State Petronet Limited;ATGL|Adani Total Gas Limited`],
+['capital_goods','Capital Goods & Electricals','🏭','#374151','Industrial Automation,Heavy Electrical Equipment,Engines',`SIEMENS|Siemens Limited;ABB|ABB India Limited;CGPOWER|CG Power and Industrial Solutions Limited;HONAUT|Honeywell Automation India Limited;TDPOWERSYS|TD Power Systems Limited;KIRLOSENG|Kirloskar Oil Engines Limited;ELGIEQUIP|Elgi Equipments Limited`],
+['staffing_services','Staffing & Business Services','🧑‍💼','#4f46e5','Staffing,HR Services,Business Process Outsourcing',`TEAMLEASE|TeamLease Services Limited;QUESS|Quess Corp Limited`],
+['education','Education Services','🎓','#2563eb','Test Prep,Skill Training,EdTech,Publishing',`APTECHT|Aptech Limited;NAVNETEDUL|Navneet Education Limited;NIITLTD|NIIT Limited`],
+['retail','Retail Chains','🛍️','#db2777','Department Stores,Fashion Retail,Supermarkets',`TRENT|Trent Limited;DMART|Avenue Supermarts Limited;VMART|V-Mart Retail Limited;SHOPERSTOP|Shoppers Stop Limited;ABFRL|Aditya Birla Fashion and Retail Limited;VIPIND|VIP Industries Limited`],
+['gaming_esports','Gaming & Digital Entertainment','🎮','#7e22ce','Online Gaming,Casinos,Mobile Value-Added Services',`NAZARA|Nazara Technologies Limited;DELTACORP|Delta Corp Limited;ONMOBILE|OnMobile Global Limited`],
+['reits','REITs & Infrastructure Trusts','🏢','#0f766e','Office REITs,Retail REITs,InvITs',`EMBASSY|Embassy Office Parks REIT;MINDSPACE|Mindspace Business Parks REIT;BIRET|Brookfield India Real Estate Trust;NXST|Nexus Select Trust;KRT|Knowledge Realty Trust`],
+['building_materials','Building Materials','🧱','#92400e','Ceramics & Tiles,Plywood & Laminates,Sanitaryware',`KAJARIACER|Kajaria Ceramics Limited;CENTURYPLY|Century Plyboards (India) Limited;GREENPANEL|Greenpanel Industries Limited;SOMANYCERA|Somany Ceramics Limited;CERA|Cera Sanitaryware Limited;GREENLAM|Greenlam Industries Limited`]
+];
+const SECTORS = RAW.map(([id,name,icon,color,ind,co]) => ({
+  id, name, icon, color, industries: ind.split(','),
+  companies: co.split(';').map(x => { const [s,n] = x.split('|'); return { sym: s + '.NS', name: n, tags: [] }; })
+}));
+
+// ── STATE ──
+const $ = id => document.getElementById(id);
+let pg = 'p1', currentSort = 'gainers', cSym = '', apexChartInstance = null, smaVisible = false;
+let openAcc = new Set(), pcache = {};
+window.currentNavList = []; window.currentNavIndex = -1;
+const PROXY = 'https://quiet-salad-da44.breakoutcharts18.workers.dev/?url=';
+
+let currentTheme = 'dark';
+try { currentTheme = localStorage.getItem('bct_theme') || 'dark'; } catch(e) {}
+if (currentTheme === 'light') document.body.classList.add('light-theme');
+
+let watchlist = new Set();
+try { const stored = localStorage.getItem('bct_wl'); if (stored) watchlist = new Set(JSON.parse(stored)); } catch(e) { console.warn('Local storage disabled.'); }
+function updateWlCount() { if ($('wl-count')) $('wl-count').textContent = watchlist.size; }
+
+// ── THEME ──
+function toggleTheme() {
+  document.body.classList.toggle('light-theme');
+  currentTheme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  try { localStorage.setItem('bct_theme', currentTheme); } catch(e) {}
+  $('theme-toggle').textContent = currentTheme === 'light' ? '🌙' : '☀️';
+  if (apexChartInstance && cSym) {
+    const L = currentTheme === 'light';
+    apexChartInstance.updateOptions({
+      chart: { background: L ? '#ffffff' : '#0d0d1a', foreColor: L ? '#64748b' : '#55557a' },
+      grid: { borderColor: L ? '#e2e8f0' : '#1a1a2e' },
+      xaxis: { labels: { style: { colors: L ? '#64748b' : '#55557a' } }, axisBorder: { color: L ? '#e2e8f0' : '#1a1a2e' }, axisTicks: { color: L ? '#e2e8f0' : '#1a1a2e' } },
+      yaxis: { labels: { style: { colors: L ? '#0f172a' : '#e2e2f0' }, formatter: v => '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 0 }) } },
+      tooltip: { theme: L ? 'light' : 'dark' }
+    });
+  }
+}
+window.addEventListener('DOMContentLoaded', () => { $('theme-toggle').textContent = currentTheme === 'light' ? '🌙' : '☀️'; });
+
+// ── BATCH QUOTES ──
+async function fetchMarketDataBatch() {
+  setLoad(true);
+  const priceSnapshot = {};
+  Object.keys(pcache).forEach(k => { priceSnapshot[k] = pcache[k].price; });
+  const allSymbols = [...new Set(SECTORS.flatMap(s => s.companies.map(c => c.sym)))];
+  const chunkSize = 50, fetchPromises = [];
+  for (let i = 0; i < allSymbols.length; i += chunkSize) {
+    const chunk = allSymbols.slice(i, i + chunkSize).map(encodeURIComponent).join(',');
+    const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${chunk}`;
+    fetchPromises.push(
+      fetch(PROXY + encodeURIComponent(targetUrl))
+        .then(async res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); const text = await res.text(); try { return JSON.parse(text); } catch(e) { throw new Error('Invalid JSON'); } })
+        .catch(err => ({ _error: err.message }))
+    );
+  }
+  try {
+    const results = await Promise.all(fetchPromises);
+    let successCount = 0, lastError = '';
+    results.forEach(res => {
+      if (res && res._error) lastError = res._error;
+      else if (res?.quoteResponse?.result) {
+        successCount++;
+        res.quoteResponse.result.forEach(q => {
+          pcache[q.symbol] = { price: q.regularMarketPrice || 0, pct: q.regularMarketChangePercent || 0, marketCap: typeof q.marketCap === 'number' ? q.marketCap : 0, ts: Date.now() };
+        });
+      }
+    });
+    const hm = $('hm-status');
+    if (successCount === 0) hm.innerHTML = `<span style="color:var(--red)">⚠ Sync Failed [${lastError}]. Data provider rejected connection.</span>`;
+    else hm.innerHTML = `<span>Real-time sector performance matrix synced successfully.</span>`;
+    renderHeatmap();
+    if (pg === 'p2') buildAcc();
+    if (pg === 'p_watch') renderWatchlist();
+    flashUpdatedCards(priceSnapshot);
+  } catch(e) { console.error('Data Sync Failed', e); }
+  setLoad(false);
+}
+
+function flashUpdatedCards(oldPrices) {
+  document.querySelectorAll('.cco').forEach(card => {
+    const sym = card.dataset.sym, newP = pcache[sym]?.price, oldP = oldPrices[sym];
+    if (newP && oldP && newP !== oldP) {
+      card.classList.remove('flash-up', 'flash-down'); void card.offsetWidth;
+      card.classList.add(newP > oldP ? 'flash-up' : 'flash-down');
+      setTimeout(() => card.classList.remove('flash-up', 'flash-down'), 1100);
+    }
+  });
+}
+
+// ── CARDS / WATCHLIST ──
+function tgs(e, sym) {
+  e.stopPropagation();
+  if (watchlist.has(sym)) watchlist.delete(sym); else watchlist.add(sym);
+  try { localStorage.setItem('bct_wl', JSON.stringify([...watchlist])); } catch(err) {}
+  updateWlCount();
+  e.target.classList.toggle('starred', watchlist.has(sym));
+  e.target.textContent = watchlist.has(sym) ? '★' : '☆';
+  if (pg === 'p_watch') renderWatchlist();
+}
+function buildCoCard(c) {
+  const isSt = watchlist.has(c.sym), d = pcache[c.sym] || { price: 0, pct: 0 };
+  const pStr = d.price ? '₹' + d.price.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—';
+  const cStr = d.price ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(2) + '%' : '—';
+  const cCol = d.pct >= 0 ? 'var(--green)' : 'var(--red)';
+  const dataName = c.name.replace(/"/g, '&quot;'), escName = c.name.replace(/'/g, "\\'");
+  return `<div class="cco" data-sym="${c.sym}" data-name="${dataName}" onclick="oc('${c.sym}','${escName}')">
+      <button class="star-btn ${isSt ? 'starred' : ''}" onclick="tgs(event, '${c.sym}')">${isSt ? '★' : '☆'}</button>
+      <div class="ctop"><div><div class="cname">${c.name.length > 28 ? c.name.slice(0, 28) + '…' : c.name}</div><div class="csym">${c.sym}</div></div>
+      <div><div class="cltp">${pStr}</div><div class="cchg" style="color:${cCol}">${cStr}</div></div></div>
+  </div>`;
+}
+function renderWatchlist() {
+  const comps = [], seen = new Set();
+  SECTORS.forEach(s => s.companies.forEach(c => { if (watchlist.has(c.sym) && !seen.has(c.sym)) { seen.add(c.sym); comps.push(c); } }));
+  $('watch-grid').innerHTML = comps.map(buildCoCard).join('');
+  $('emp_watch').style.display = comps.length > 0 ? 'none' : 'block';
+}
+
+// ── FULL LIST ──
+function applyScreenerSort(mode) { currentSort = mode; $('sort-select').value = mode; buildAcc(); }
+function buildAcc() {
+  let processed = SECTORS.map(sec => {
+    const active = sec.companies.filter(c => pcache[c.sym]);
+    let avg = 0; if (active.length) avg = active.reduce((a, c) => a + pcache[c.sym].pct, 0) / active.length;
+    const sorted = [...sec.companies];
+    if (currentSort === 'gainers') sorted.sort((a, b) => (pcache[b.sym]?.pct ?? -9999) - (pcache[a.sym]?.pct ?? -9999));
+    else if (currentSort === 'losers') sorted.sort((a, b) => (pcache[a.sym]?.pct ?? 9999) - (pcache[b.sym]?.pct ?? 9999));
+    else if (currentSort === 'alpha') sorted.sort((a, b) => a.name.localeCompare(b.name));
+    return { ...sec, companies: sorted, calculatedAvg: avg };
+  });
+  if (currentSort === 'gainers') processed.sort((a, b) => b.calculatedAvg - a.calculatedAvg);
+  else if (currentSort === 'losers') processed.sort((a, b) => a.calculatedAvg - b.calculatedAvg);
+  $('accs').innerHTML = processed.map(sec => {
+    const o = openAcc.has(sec.id) ? 'open' : '';
+    return `<div class="acc" id="acc-${sec.id}">
+      <div class="ah ${o}" id="ah-${sec.id}" onclick="togAcc('${sec.id}')">
+        <div class="al"><span class="aico">${sec.icon}</span><div><div class="atitle">${sec.name}</div><div class="acount">${sec.companies.length} companies · ${sec.industries.slice(0, 3).join(', ')}</div></div></div>
+        <div class="ar"><span class="achip" id="chip-${sec.id}">—</span><span class="achev">▼</span></div>
+      </div>
+      <div class="ab ${o}" id="ab-${sec.id}"><div class="cgrid">${sec.companies.map(buildCoCard).join('')}</div></div>
+    </div>`;
+  }).join('');
+  processed.forEach(sec => {
+    const el = $('chip-' + sec.id);
+    if (el && sec.companies.length > 0 && sec.calculatedAvg !== 0) {
+      el.textContent = (sec.calculatedAvg >= 0 ? '▲ ' : '▼ ') + sec.calculatedAvg.toFixed(2) + '%';
+      el.style.color = sec.calculatedAvg >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+  });
+  filt($('srch').value);
+}
+function togAcc(id) {
+  const ah = $('ah-' + id), ab = $('ab-' + id);
+  if (openAcc.has(id)) { openAcc.delete(id); ah.classList.remove('open'); ab.classList.remove('open'); }
+  else { openAcc.add(id); ah.classList.add('open'); ab.classList.add('open'); }
+}
+function filt(q) {
+  const t = q.trim().toLowerCase(); let any = false;
+  SECTORS.forEach(sec => {
+    const ae = $('acc-' + sec.id), be = $('ab-' + sec.id), he = $('ah-' + sec.id);
+    if (!ae) return;
+    if (!t) { ae.style.display = ''; be.classList.toggle('open', openAcc.has(sec.id)); he.classList.toggle('open', openAcc.has(sec.id)); ae.querySelectorAll('.cco').forEach(c => c.style.display = ''); any = true; return; }
+    const sm = sec.name.toLowerCase().includes(t) || sec.industries.some(i => i.toLowerCase().includes(t));
+    let cc = 0;
+    ae.querySelectorAll('.cco').forEach(c => {
+      const show = sm || c.querySelector('.cname').textContent.toLowerCase().includes(t) || c.querySelector('.csym').textContent.toLowerCase().includes(t);
+      c.style.display = show ? '' : 'none'; if (show) cc++;
+    });
+    if (sm || cc > 0) { ae.style.display = ''; be.classList.add('open'); he.classList.add('open'); any = true; } else ae.style.display = 'none';
+  });
+  $('emp2').style.display = any ? 'none' : 'block';
+}
+
+// ── CHART MODAL ──
+function oc(sym, name) {
+  cSym = sym; $('ccname').textContent = name; $('ccsym').textContent = sym.replace('.NS', '');
+  $('cmodal').classList.add('open');
+  $('cltp_m').textContent = '—'; $('cchg_m').textContent = '—'; $('cchg_m').style.color = 'var(--muted)';
+  $('btn-sma').classList.toggle('active', smaVisible);
+  const vis = Array.from(document.querySelectorAll('.page.active .cco')).filter(c => c.style.display !== 'none');
+  window.currentNavList = vis.map(c => ({ sym: c.dataset.sym, name: c.dataset.name }));
+  window.currentNavIndex = window.currentNavList.findIndex(i => i.sym === sym);
+  updateNavButtons();
+  if (apexChartInstance) { apexChartInstance.destroy(); apexChartInstance = null; }
+  $('lwc').innerHTML = '';
+  loadChart(sym);
+}
+function updateNavButtons() {
+  if (!window.currentNavList || window.currentNavIndex === -1) { $('btn-prev').disabled = true; $('btn-next').disabled = true; return; }
+  $('btn-prev').disabled = window.currentNavIndex <= 0;
+  $('btn-next').disabled = window.currentNavIndex >= window.currentNavList.length - 1;
+}
+function navChart(dir) {
+  if (!window.currentNavList) return;
+  const i = window.currentNavIndex + dir;
+  if (i >= 0 && i < window.currentNavList.length) oc(window.currentNavList[i].sym, window.currentNavList[i].name);
+}
+function tsma(btn) { smaVisible = !smaVisible; btn.classList.toggle('active', smaVisible); if (cSym) loadChart(cSym); }
+
+async function loadChart(sym) {
+  $('cload').style.display = 'flex';
+  $('cload').innerHTML = `<div class="cspn"></div><span style="margin-top:10px;">Loading historical pricing...</span>`;
+  const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
+  try {
+    const r = await fetch(PROXY + encodeURIComponent(url));
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const text = await r.text(); let j;
+    try { j = JSON.parse(text); } catch(e) { throw new Error('Data package corrupted.'); }
+    const res = j?.chart?.result?.[0]; if (!res) throw new Error('Data payload empty.');
+    const ts = res.timestamp || [], q = res.indicators?.quote?.[0] || {}, m = res.meta;
+    const candleData = [], raw = [], smaData = [];
+    for (let i = 0; i < ts.length; i++) {
+      if (q.open[i] != null && q.high[i] != null && q.low[i] != null && q.close[i] != null) {
+        const t = ts[i] * 1000;
+        candleData.push({ x: t, y: [+q.open[i].toFixed(2), +q.high[i].toFixed(2), +q.low[i].toFixed(2), +q.close[i].toFixed(2)] });
+        raw.push({ x: t, close: q.close[i] });
+      }
+    }
+    if (candleData.length >= 20) for (let i = 19; i < candleData.length; i++) {
+      let sum = 0; for (let k = 0; k < 20; k++) sum += raw[i - k].close;
+      smaData.push({ x: raw[i].x, y: +(sum / 20).toFixed(2) });
+    }
+    const series = [{ name: 'Price Action', type: 'candlestick', data: candleData }];
+    if (smaVisible && smaData.length) series.push({ name: '20 SMA', type: 'line', data: smaData });
+    const L = currentTheme === 'light';
+    const options = {
+      series,
+      chart: { type: 'line', height: 420, background: L ? '#ffffff' : '#0d0d1a', foreColor: L ? '#64748b' : '#55557a', toolbar: { show: false }, animations: { enabled: false } },
+      legend: { show: false }, colors: ['#fbbf24'],
+      plotOptions: { candlestick: { colors: { upward: '#4ade80', downward: '#f87171' }, wick: { useFillColor: true } } },
+      stroke: { width: [1, 2], curve: 'smooth' },
+      grid: { borderColor: L ? '#e2e8f0' : '#1a1a2e', xaxis: { lines: { show: true } } },
+      xaxis: { type: 'datetime', labels: { style: { colors: L ? '#64748b' : '#55557a' } }, axisBorder: { color: L ? '#e2e8f0' : '#1a1a2e' }, axisTicks: { color: L ? '#e2e8f0' : '#1a1a2e' } },
+      yaxis: { opposite: true, labels: { style: { colors: L ? '#0f172a' : '#e2e2f0' }, formatter: v => '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 0 }) } },
+      tooltip: { theme: L ? 'light' : 'dark', shared: true, x: { format: 'dd MMM yyyy' } }
+    };
+    if (apexChartInstance) apexChartInstance.destroy();
+    $('lwc').innerHTML = '';
+    apexChartInstance = new ApexCharts($('lwc'), options);
+    await apexChartInstance.render();
+    const price = pcache[sym]?.price || m.regularMarketPrice, prevClose = m.chartPreviousClose || price;
+    const pct = pcache[sym]?.pct || ((price - prevClose) / prevClose) * 100;
+    if (price) {
+      $('cltp_m').textContent = '₹' + price.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      $('cchg_m').textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '% ' + (pct >= 0 ? '▲' : '▼');
+      $('cchg_m').style.color = pct >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+    $('cload').style.display = 'none';
+  } catch(err) {
+    $('cload').innerHTML = `<div style="border:1px solid var(--red);padding:12px;border-radius:8px;color:var(--red);text-align:center;">⚠ Data Stream Failure:<br>${err.message}</div>`;
+  }
+}
+function cc() { $('cmodal').classList.remove('open'); }
+function cmc(e) { if (e.target === $('cmodal')) cc(); }
+document.addEventListener('keydown', e => {
+  if (!$('cmodal').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft') navChart(-1); else if (e.key === 'ArrowRight') navChart(1); else if (e.key === 'Escape') cc();
+});
+
+// ── NAVIGATION ──
+function setLoad(on) {
+  if ($('btn-ref')) $('btn-ref').disabled = on;
+  if ($('btxt')) $('btxt').textContent = on ? 'Syncing…' : 'Sync Terminal';
+  if ($('spin')) $('spin').className = on ? 'spin' : '';
+}
+function sp(id) {
+  pg = id;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  if ($(id)) $(id).classList.add('active');
+  document.querySelectorAll('.n-tab').forEach(t => t.classList.toggle('active', t.dataset.p === id));
+  if (id === 'p1') renderHeatmap();
+  if (id === 'p2') buildAcc();
+  if (id === 'p_watch') renderWatchlist();
+}
+function refresh() { fetchMarketDataBatch(); }
+function clock() {
+  const now = new Date();
+  if ($('ntime')) $('ntime').textContent = 'IST ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if ($('nsub')) $('nsub').textContent = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+
+// 1) Bar-heatmap styles
 (function(){
   const st = document.createElement('style');
   st.textContent = `.hb-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
@@ -31,8 +515,6 @@
 @media(max-width:640px){.hb-row{grid-template-columns:110px 1fr 64px;gap:8px;padding:7px 10px}}
 `;
   document.head.appendChild(st);
-  const p1 = document.getElementById('p1');
-  if (p1) p1.innerHTML = '<div class="hb-toolbar" id="hb-toolbar"></div><div class="status" id="hm-status"><span>Ranked sector / theme performance. Click a row to see its stocks.</span></div><div id="heatmap-container"></div>';
 })();
 
 // 2) New sectors (skips any id that already exists)
@@ -230,6 +712,13 @@ function renderHeatmap() {
   }).join('') + `</div>`;
 }
 
-// 5) Re-sync once so the new sectors get prices
-if (typeof fetchMarketDataBatch === "function") fetchMarketDataBatch();
+
+
+
+// ── START ──
+clock(); setInterval(clock, 1000); updateWlCount();
+fetchMarketDataBatch();
+setInterval(() => { const h = new Date().getHours(); if (h >= 9 && h <= 16) fetchMarketDataBatch(); }, 30000);
 </script>
+</body>
+</html>
