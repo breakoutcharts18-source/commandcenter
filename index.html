@@ -512,6 +512,7 @@ function clock() {
 .hb-m:hover{border-color:var(--dim)}
 .hb-m span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hb-m b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+#hb-toolbar .hb-miss{background:none;border:1px solid var(--border);color:var(--yellow);border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
 @media(max-width:640px){.hb-row{grid-template-columns:110px 1fr 64px;gap:8px;padding:7px 10px}}
 `;
   document.head.appendChild(st);
@@ -552,6 +553,66 @@ const NEW_SECTORS = [
 
 // Merge without creating duplicate sector IDs
 NEW_SECTORS.forEach(ns => { if (!SECTORS.some(s => s.id === ns.id)) SECTORS.push(ns); });
+// 2b) More stocks for existing sectors + 4 new sectors (tickers are NSE symbols; ".NS" is added automatically)
+const EXTRA = {
+ defence_pvt: `DYNAMATECH|Dynamatic Technologies;NIBE|Nibe Limited;AVANTEL|Avantel Limited;DCXINDIA|DCX Systems;KRISHNADEF|Krishna Defence and Allied Industries;UNIMECH|Unimech Aerospace and Manufacturing;HBLENGINE|HBL Engineering`,
+ cables: `RRKABEL|RR Kabel;UNIVCABLES|Universal Cables;DYCL|Dynamic Cables;PRECWIRE|Precision Wires India;BIRLACABLE|Birla Cable;CORDSCABLE|Cords Cable Industries;APARINDS|Apar Industries`,
+ jewellery: `SKYGOLD|Sky Gold and Diamonds;SHANTIGOLD|Shanti Gold International;GOLDIAM|Goldiam International;VAIBHAVGBL|Vaibhav Global;MOTISONS|Motisons Jewellers;RBZJEWEL|RBZ Jewellers;IIFL|IIFL Finance`,
+ amc: `ANANDRATHI|Anand Rathi Wealth;NUVAMA|Nuvama Wealth Management;JMFINANCIL|JM Financial;CAMS|Computer Age Management Services;KFINTECH|KFin Technologies;ABSLAMC|Aditya Birla Sun Life AMC;IEX|Indian Energy Exchange;PRUDENT|Prudent Corporate Advisory Services;CRISIL|CRISIL Limited;ICRA|ICRA Limited;CARERATING|CARE Ratings;SHAREINDIA|Share India Securities;CHOICEIN|Choice International;SMCGLOBAL|SMC Global Securities;ARIHANTCAP|Arihant Capital Markets;NSDL|National Securities Depository`,
+ railway: `RITES|RITES Limited;KERNEX|Kernex Microsystems;GPTINFRA|GPT Infraprojects`,
+ hospitality: `THOMASCOOK|Thomas Cook India;MHRIL|Mahindra Holidays and Resorts;WONDERLA|Wonderla Holidays;SAMHI|Samhi Hotels;ORIENTHOT|Orient Hotels;PARKHOTELS|Apeejay Surrendra Park Hotels;ROHLTD|Royal Orchid Hotels;KAMATHOTEL|Kamat Hotels;SPICEJET|SpiceJet;TBOTEK|TBO Tek`,
+ biotech: `PPLPHARMA|Piramal Pharma;SAILIFE|Sai Life Sciences;ANTHEM|Anthem Biosciences;CONCORDBIO|Concord Biotech;SEQUENT|Sequent Scientific;DCAL|Dishman Carbogen Amcis;GLAND|Gland Pharma;SHILPAMED|Shilpa Medicare;SMSPHARMA|SMS Pharmaceuticals;ONESOURCE|Onesource Specialty Pharma;LAURUSLABS|Laurus Labs;NEULANDLAB|Neuland Laboratories;JUBLPHARMA|Jubilant Pharmova`,
+ sugar: `BAJAJHIND|Bajaj Hindusthan Sugar;RENUKA|Shree Renuka Sugars;DWARKESH|Dwarikesh Sugar Industries;AVADHSUGAR|Avadh Sugar & Energy;UGARSUGAR|Ugar Sugar Works;MAGADSUGAR|Magadh Sugar & Energy;BANNARI|Bannari Amman Sugars;ANDHRSUGAR|Andhra Sugars;SAKTISUG|Sakthi Sugars;KCPSUGIND|KCP Sugar and Industries;VISHWARAJ|Vishwaraj Sugar Industries;PONNIERODE|Ponni Sugars (Erode)`,
+ pvt_bank: `BANDHANBNK|Bandhan Bank;IDBI|IDBI Bank;TMB|Tamilnad Mercantile Bank;CUB|City Union Bank;KARURVYSYA|Karur Vysya Bank;SOUTHBANK|South Indian Bank;J&KBANK|Jammu & Kashmir Bank;DHANBANK|Dhanlaxmi Bank`,
+ building_materials: `STYLAMIND|Stylam Industries;ORIENTBELL|Orient Bell;HINDWAREAP|Hindware Home Innovation;GRINDWELL|Grindwell Norton;RAMCOIND|Ramco Industries;EVERESTIND|Everest Industries;VISAKAIND|Visaka Industries`,
+ cement: `NUVOCO|Nuvoco Vistas;STARCEMENT|Star Cement;SAGCEM|Sagar Cements;BIRLACORPN|Birla Corporation;PRSMJOHNSN|Prism Johnson;MANGLMCEM|Mangalam Cement`,
+ hospital: `MEDANTA|Global Health (Medanta);RAINBOW|Rainbow Childrens Medicare;JLHL|Jupiter Life Line Hospitals;HCG|HealthCare Global Enterprises;VIMTALABS|Vimta Labs`,
+ new_age_tech: `AFFLE|Affle (India);TANLA|Tanla Platforms;TRACXN|Tracxn Technologies;INFIBEAM|Infibeam Avenues;RATEGAIN|RateGain Travel Technologies;ZAGGLE|Zaggle Prepaid Ocean Services;MOBIKWIK|One MobiKwik Systems;NEWGEN|Newgen Software Technologies;URBANCO|Urban Company;LENSKART|Lenskart Solutions;GROWW|Groww (Billionbrains Garage Ventures);PINELABS|Pine Labs;PHYSICSWALLAH|PhysicsWallah`,
+ water_utilities: `KIRLOSBROS|Kirloskar Brothers;SHAKTIPUMP|Shakti Pumps (India);WPIL|WPIL Limited;JASH|Jash Engineering;TEXMOPIPES|Texmo Pipes and Products`,
+ solar_wind: `WAAREERTL|Waaree Renewable Technologies;KPIGREEN|KPI Green Energy;KPEL|K.P. Energy;SWSOLAR|Sterling and Wilson Renewable Energy;ACMESOLAR|ACME Solar Holdings;SOLEX|Solex Energy;EMMVEE|Emmvee Photovoltaic Power;SAATVIKGL|Saatvik Green Energy`,
+ logistics: `GESHIP|Great Eastern Shipping;SEAMECLTD|Seamec Limited;JSWINFRA|JSW Infrastructure;DREDGECORP|Dredging Corporation of India;GPPL|Gujarat Pipavav Port;SHREYAS|Shreyas Shipping & Logistics;TCIEXP|TCI Express;GATEWAY|Gateway Distriparks;AEGISLOG|Aegis Logistics;SNOWMAN|Snowman Logistics;VRLLOG|VRL Logistics;TCI|Transport Corporation of India`,
+ qsr: `BARBEQUE|Barbeque-Nation Hospitality;RBA|Restaurant Brands Asia`,
+ capital_goods: `WALCHANNAG|Walchandnagar Industries;ISGEC|Isgec Heavy Engineering`,
+ realty: `ANANTRAJ|Anant Raj`,
+ telecom: `TATACOMM|Tata Communications`
+};
+const NEW2 = [
+ ['power_td','Power T&D Equipment','🗼','#f59e0b','Transformers,Transmission EPC,Switchgear,Smart Meters',`KEC|KEC International;KPIL|Kalpataru Projects International;POWERINDIA|Hitachi Energy India;GVT&D|GE Vernova T&D India;TARIL|Transformers and Rectifiers India;VOLTAMP|Voltamp Transformers;INDOTECH|Indo Tech Transformers;SCHNEIDER|Schneider Electric Infrastructure;APARINDS|Apar Industries;TECHNOE|Techno Electric & Engineering;SHILCTECH|Shilchar Technologies;GENUSPOWER|Genus Power Infrastructures;HBLENGINE|HBL Engineering;ADANIENSOL|Adani Energy Solutions;SALZERELEC|Salzer Electronics;ENGINERSIN|Engineers India;JYOTISTRUC|Jyoti Structures;PTC|PTC India`],
+ ['ev_battery','EV, Batteries & Charging','🔋','#22c55e','Battery Makers,EV OEMs,Charging,Powertrain',`AMARARAJA|Amara Raja Energy & Mobility;UNOMINDA|Uno Minda;SONACOMS|Sona BLW Precision Forgings;OLAELEC|Ola Electric Mobility;ATHERENERG|Ather Energy;JBMA|JBM Auto;EXICOM|Exicom Tele-Systems;SERVOTECH|Servotech Renewable Power System;EXIDEIND|Exide Industries;OLECTRA|Olectra Greentech;TVSMOTOR|TVS Motor Company;M&M|Mahindra & Mahindra;BAJAJ-AUTO|Bajaj Auto`],
+ ['data_centres','Data Centres & Cloud Infra','☁️','#6366f1','Data Centres,Cloud Hosting,Networking',`ANANTRAJ|Anant Raj;E2E|E2E Networks;TATACOMM|Tata Communications;NETWEB|Netweb Technologies;RAILTEL|RailTel Corporation;TEJASNET|Tejas Networks;HFCL|HFCL Limited;STLTECH|Sterlite Technologies;BLUESTARCO|Blue Star;VOLTAS|Voltas`],
+ ['epc','EPC & Construction','🏗️','#0ea5e9','Roads EPC,Water EPC,Civil,Metro',`HGINFRA|H.G. Infra Engineering;GRINFRA|GR Infraprojects;DBL|Dilip Buildcon;AHLUCONT|Ahluwalia Contracts;PATELENG|Patel Engineering;JKIL|J. Kumar Infraprojects;HCC|Hindustan Construction Company;AFCONS|Afcons Infrastructure;WELSPUNENT|Welspun Enterprises;RPPINFRA|RPP Infra Projects;MANINFRA|Man Infraconstruction;CAPACITE|Capacit'e Infraprojects;POWERMECH|Power Mech Projects;KEC|KEC International;KPIL|Kalpataru Projects International;LT|Larsen & Toubro;NBCC|NBCC (India);RVNL|Rail Vikas Nigam;RITES|RITES Limited;IRCON|Ircon International;NCC|NCC Limited`]
+];
+const mkCo = str => str.split(';').map(x => { const [s, n] = x.split('|'); return { sym: s + '.NS', name: n, tags: [] }; });
+NEW2.forEach(([id, name, icon, color, ind, co]) => { if (!SECTORS.some(s => s.id === id)) SECTORS.push({ id, name, icon, color, industries: ind.split(','), companies: mkCo(co) }); });
+Object.entries(EXTRA).forEach(([id, str]) => {
+  const sec = SECTORS.find(s => s.id === id); if (!sec) return;
+  mkCo(str).forEach(c => { if (!sec.companies.some(x => x.sym === c.sym)) sec.companies.push(c); });
+});
+
+// 2c) Fill-ins so every theme has a full stock list
+const EXTRA2 = {
+ defence_pvt: `GOCLCORP|GOCL Corporation`,
+ jewellery: `DPABHUSHAN|DP Abhushan;RADHIKAJWE|Radhika Jeweltech;CGCL|Capri Global Capital`,
+ biotech: `BLUEJET|Blue Jet Healthcare;AARTIDRUGS|Aarti Drugs;SIGACHI|Sigachi Industries`,
+ sugar: `KOTHARISUG|Kothari Sugars and Chemicals;DCMSHRIRAM|DCM Shriram`,
+ amc: `PNBGILTS|PNB Gilts;EDELWEISS|Edelweiss Financial Services;MONARCH|Monarch Networth Capital;DAMCAPITAL|DAM Capital Advisors`,
+ hospitality: `SINCLAIRS|Sinclairs Hotels;ASIANHOTNR|Asian Hotels (North)`,
+ qsr: `SPECIALITY|Speciality Restaurants`,
+ power_td: `TRANSRAIL|Transrail Lighting;BAJELPROJ|Bajel Projects`,
+ water_utilities: `ENVIRO|Enviro Infra Engineers`,
+ psu_bank: `IOB|Indian Overseas Bank;PSB|Punjab & Sind Bank`,
+ hospital: `ARTEMISMED|Artemis Medicare Services;NEPHROPLUS|Nephrocare Health Services;LAXMIDENTL|Laxmi Dental`,
+ solar_wind: `INOXGREEN|Inox Green Energy Services;RTNPOWER|RattanIndia Power`,
+ electronics_mfg: `IKIO|IKIO Lighting`,
+ epc: `ITDCEM|ITD Cementation India;MBLINFRA|MBL Infrastructure`,
+ oil: `HINDPETRO|Hindustan Petroleum Corporation;CHENNPETRO|Chennai Petroleum Corporation`,
+ pse: `FACT|Fertilisers and Chemicals Travancore;KIOCL|KIOCL Limited;MTNL|Mahanagar Telephone Nigam;IFCI|IFCI Limited;ENGINERSIN|Engineers India;RITES|RITES Limited`
+};
+Object.entries(EXTRA2).forEach(([id, str]) => {
+  const sec = SECTORS.find(s => s.id === id); if (!sec) return;
+  mkCo(str).forEach(c => { if (!sec.companies.some(x => x.sym === c.sym)) sec.companies.push(c); });
+});
+
 SECTORS.forEach(s => s.companies.forEach(c => { if (!c.tags) c.tags = []; }));
 
 // 3) Live sector/company count in the Full List banner
@@ -564,36 +625,50 @@ SECTORS.forEach(s => s.companies.forEach(c => { if (!c.tags) c.tags = []; }));
 // 4) Bar heatmap engine
 const HB_TF   = [['today','Today'],['1w','1W'],['1m','1M'],['3m','3M'],['6m','6M'],['ytd','YTD'],['1y','1Y']];
 const HB_IDX  = {'1w':0,'1m':1,'3m':2,'6m':3,'ytd':4,'1y':5};
-const HB_VIEWS= [['theme','Themes'],['sector','Sector']];
+const HB_VIEWS= [['theme','Themes'],['macro','Macro'],['sector','Sector']];
 
 // Themes cut ACROSS sectors. s = whole sectors (by id), y = extra symbols.
 // Symbols not present in SECTORS are ignored silently, so edit freely.
 const THEMES = [
- {n:'Wires & Cables', s:['cables']},
- {n:'Data Centres & Cloud', y:['NETWEB.NS','RAILTEL.NS','TEJASNET.NS','HFCL.NS','STLTECH.NS','ANANTRAJ.NS','E2E.NS']},
- {n:'Defence', s:['defence_pvt','defence_psu']},
- {n:'Jewellery & Gold', s:['jewellery'], y:['MUTHOOTFIN.NS','MANAPPURAM.NS']},
- {n:'EMS / Electronics Manufacturing', s:['electronics_mfg'], y:['DIXON.NS','AMBER.NS','KAYNES.NS']},
- {n:'Nuclear Power', y:['BHEL.NS','LT.NS','NTPC.NS','TATAPOWER.NS','MTARTECH.NS','MIDHANI.NS','NLCINDIA.NS']},
- {n:'Drones & Space', y:['ZENTEC.NS','IDEAFORGE.NS','PARAS.NS','DATAPATTNS.NS','ASTRAMICRO.NS','TANEJAERO.NS','AZAD.NS','CENTUM.NS','MTARTECH.NS']},
- {n:'Shipbuilding & Maritime', y:['MAZDOCK.NS','COCHINSHIP.NS','GRSE.NS','SWANDEF.NS','SCI.NS','ADANIPORTS.NS']},
- {n:'CDMO / CRDMO', y:['SYNGENE.NS','DIVISLAB.NS','SUVENPHAR.NS','LAURUSLABS.NS','NEULANDLAB.NS','JUBLPHARMA.NS']},
- {n:'Sugar & Ethanol', s:['sugar']},
- {n:'Capital Markets', s:['amc']},
- {n:'Railways', s:['railway']},
- {n:'Travel & Hospitality', s:['hospitality'], y:['INDIGO.NS','IRCTC.NS','EASEMYTRIP.NS','IXIGO.NS']},
- {n:'QSR & Restaurants', s:['qsr']},
- {n:'Power T&D', y:['POWERGRID.NS','ABB.NS','SIEMENS.NS','CGPOWER.NS','TDPOWERSYS.NS','BHEL.NS','POWERINDIA.NS','KEC.NS','KALPATPOWR.NS']},
- {n:'Internet & New-Age Tech', s:['new_age_tech']},
- {n:'Semiconductors (India)', y:['MOSCHIP.NS','KAYNES.NS','CGPOWER.NS','SYRMA.NS']},
- {n:'Water & Sanitation', s:['water_utilities'], y:['CERA.NS','ASTRAL.NS','FINPIPE.NS','PRINCEPIPE.NS']},
- {n:'Private Banks', s:['pvt_bank']},
+ {n:'Data Centres & Cloud', s:['data_centres']},
+ {n:'Jewellery & Gold', s:['jewellery'], y:['MUTHOOTFIN.NS','MANAPPURAM.NS','IIFL.NS','MMTC.NS','STCINDIA.NS']},
  {n:'PSU Banks', s:['psu_bank']},
- {n:'Building Materials', s:['building_materials']},
- {n:'Hospitals & Diagnostics', s:['hospital','diagnostics']},
- {n:'EV & Batteries', y:['OLECTRA.NS','EXIDEIND.NS','AMARARAJA.NS','M&M.NS','TVSMOTOR.NS','BAJAJ-AUTO.NS']},
- {n:'Infra EPC', s:['infra'], y:['KEC.NS','KALPATPOWR.NS','RVNL.NS','NBCC.NS']},
- {n:'Renewable Energy', s:['solar_wind'], y:['ADANIGREEN.NS','NTPCGREEN.NS','JSWENERGY.NS','NHPC.NS','SJVN.NS','IREDA.NS','TATAPOWER.NS','TORNTPOWER.NS']}
+ {n:'Private Banks', s:['pvt_bank','sfb']},
+ {n:'Nuclear Power', y:['BHEL.NS','LT.NS','NTPC.NS','TATAPOWER.NS','MTARTECH.NS','MIDHANI.NS','NLCINDIA.NS']},
+ {n:'Sugar & Ethanol', s:['sugar']},
+ {n:'Wires & Cables', s:['cables']},
+ {n:'Internet & New-Age Tech', s:['new_age_tech','commercial_services']},
+ {n:'Capital Markets', s:['amc']},
+ {n:'Shipbuilding & Maritime', y:['MAZDOCK.NS','COCHINSHIP.NS','GRSE.NS','SWANDEF.NS','SCI.NS','ADANIPORTS.NS','GESHIP.NS','SEAMECLTD.NS','JSWINFRA.NS','DREDGECORP.NS','GPPL.NS','SHREYAS.NS','ALLCARGO.NS','CONCOR.NS','GATEWAY.NS','AEGISLOG.NS']},
+ {n:'Drones & Space', y:['ZENTEC.NS','IDEAFORGE.NS','PARAS.NS','DATAPATTNS.NS','ASTRAMICRO.NS','TANEJAERO.NS','AZAD.NS','CENTUM.NS','MTARTECH.NS']},
+ {n:'Travel & Hospitality', s:['hospitality'], y:['INDIGO.NS','IRCTC.NS','EASEMYTRIP.NS','IXIGO.NS','GMRAIRPORT.NS','PVRINOX.NS','BLUEDART.NS']},
+ {n:'CDMO / CRDMO', s:['biotech'], y:['DIVISLAB.NS','SUVENPHAR.NS']},
+ {n:'QSR & Restaurants', s:['qsr']},
+ {n:'Defence', s:['defence_pvt','defence_psu','aero_forgings']},
+ {n:'EMS / Electronics Manufacturing', s:['electronics_mfg'], y:['DIXON.NS','AMBER.NS','KAYNES.NS']},
+ {n:'Power T&D', s:['power_td'], y:['POWERGRID.NS','ABB.NS','SIEMENS.NS','CGPOWER.NS','TDPOWERSYS.NS','BHEL.NS','HONAUT.NS','POLYCAB.NS','KEI.NS']},
+ {n:'Building Materials', s:['building_materials','cement']},
+ {n:'Water & Sanitation', s:['water_utilities','plastics_pipes'], y:['CERA.NS','GRAVITA.NS','ENGINERSIN.NS','JINDALSAW.NS','WELCORP.NS']},
+ {n:'PSU', s:['psu_bank','defence_psu','pse'], y:['LICI.NS','GICRE.NS','NIACL.NS','IRFC.NS','RVNL.NS','IRCTC.NS','RAILTEL.NS','IRCON.NS','NTPC.NS','POWERGRID.NS','ONGC.NS','IOC.NS','BPCL.NS','GAIL.NS','OIL.NS','MRPL.NS','NHPC.NS','SJVN.NS','CONCOR.NS','SCI.NS','MMTC.NS','STCINDIA.NS','HINDCOPPER.NS','NATIONALUM.NS','NFL.NS','RCF.NS','NBCC.NS','NTPCGREEN.NS','IREDA.NS','PFC.NS','RECLTD.NS','HINDPETRO.NS']},
+ {n:'Infra EPC', s:['infra','epc']},
+ {n:'Railways', s:['railway'], y:['KPIL.NS','KEC.NS','CONCOR.NS','HBLENGINE.NS']},
+ {n:'Renewable Energy', s:['solar_wind'], y:['ADANIGREEN.NS','NTPCGREEN.NS','JSWENERGY.NS','NHPC.NS','SJVN.NS','IREDA.NS','TATAPOWER.NS','TORNTPOWER.NS','ADANIENSOL.NS','CESC.NS','RPOWER.NS','SHAKTIPUMP.NS']},
+ {n:'Hospitals & Diagnostics', s:['hospital','diagnostics'], y:['POLYMED.NS','MEDPLUS.NS']},
+ {n:'EV & Batteries', s:['ev_battery']},
+ {n:'Semiconductors (India)', y:['MOSCHIP.NS','KAYNES.NS','CGPOWER.NS']}
+];
+const MACRO = [
+ {n:'Capex & Infrastructure', s:['infra','epc','cement','steel','capital_goods','power_td','railway','building_materials']},
+ {n:'Financials', s:['psu_bank','pvt_bank','sfb','nbfc','insurance','amc','housing_finance']},
+ {n:'Domestic Consumption', s:['fmcg','auto','consumer_dur','retail','jewellery','qsr','hospitality','footwear','spirits','tobacco','media']},
+ {n:'Export Oriented', s:['it','pharma','chem','textiles','data_bpo','auto_anc']},
+ {n:'Commodities & Metals', s:['steel','agri','sugar','paper','chem']},
+ {n:'Energy & Power', s:['power','oil','city_gas','solar_wind','pse']},
+ {n:'Healthcare', s:['pharma','hospital','diagnostics','med_equipment','biotech']},
+ {n:'Defence & Strategic', s:['defence_pvt','defence_psu','aero_forgings']},
+ {n:'Digital & New-Age', s:['new_age_tech','commercial_services','data_bpo','gaming_esports','data_centres','telecom']},
+ {n:'Real Estate & Housing', s:['realty','reits','housing_finance','building_materials']},
+ {n:'Logistics & Mobility', s:['logistics','aviation','auto','ev_battery']}
 ];
 
 let hbTF = 'today', hbView = 'theme', hbOpen = null, hbLoading = false, hbMsg = '';
@@ -659,17 +734,30 @@ function hbRet(sym) {
 }
 
 function hbGroups() {
+  const byId = {}; SECTORS.forEach(s => byId[s.id] = s);
   if (hbView === 'sector')
     return SECTORS.map(s => ({ id: s.id, n: s.name, syms: [...new Set(s.companies.map(c => c.sym))] }));
-  const byId = {}; SECTORS.forEach(s => byId[s.id] = s);
-  return THEMES.map((t, i) => {
+  const defs = hbView === 'macro' ? MACRO : THEMES, pre = hbView === 'macro' ? 'm' : 't';
+  return defs.map((t, i) => {
     const set = new Set();
     (t.s || []).forEach(id => byId[id] && byId[id].companies.forEach(c => set.add(c.sym)));
     (t.y || []).forEach(y => { if (HB_NAME[y]) set.add(y); });
-    return { id: 't' + i, n: t.n, syms: [...set] };
+    return { id: pre + i, n: t.n, syms: [...set] };
   }).filter(g => g.syms.length);
 }
 
+let hbCap = true, hbMin3 = true;   // filters: market cap >= Rs 500 Cr, and groups with 3+ stocks
+const hbCapOK = s => !hbCap || !(pcache[s] && pcache[s].marketCap) || pcache[s].marketCap >= 5e9;
+function hbTog(k) { if (k === 'cap') hbCap = !hbCap; else hbMin3 = !hbMin3; hbOpen = null; renderHeatmap(); }
+
+function hbMissing() {
+  if (!Object.keys(pcache).length) return [];
+  return [...new Set(SECTORS.flatMap(s => s.companies.map(c => c.sym)))].filter(s => !(pcache[s] && pcache[s].price));
+}
+function hbShowMissing() {
+  const m = hbMissing(); console.log('Tickers with no data:', m);
+  prompt('Tickers with no Yahoo data (' + m.length + ') - copy this list and send it to Claude:', m.join(', '));
+}
 function hbSetTF(tf)  { hbTF = tf; hbOpen = null; if (tf !== 'today') hbLoadHistory(); renderHeatmap(); }
 function hbSetView(v) { hbView = v; hbOpen = null; renderHeatmap(); }
 function hbToggle(id) { hbOpen = hbOpen === id ? null : id; renderHeatmap(); }
@@ -682,13 +770,13 @@ function renderHeatmap() {
   if (!tb || !box) return;
   const seg = (arr, cur, fn) => `<div class="hb-seg">` + arr.map(([k, l]) =>
     `<button class="${k === cur ? 'active' : ''}" onclick="${fn}('${k}')">${l}</button>`).join('') + `</div>`;
-  tb.innerHTML = seg(HB_TF, hbTF, 'hbSetTF') + seg(HB_VIEWS, hbView, 'hbSetView') + `<span id="hb-status">${hbMsg}</span>`;
+  tb.innerHTML = seg(HB_TF, hbTF, 'hbSetTF') + seg(HB_VIEWS, hbView, 'hbSetView') + `<div class="hb-seg"><button class="${hbCap ? 'active' : ''}" onclick="hbTog('cap')">₹500 Cr+</button><button class="${hbMin3 ? 'active' : ''}" onclick="hbTog('min3')">3+ stocks</button></div>` + (hbMissing().length ? `<button class="hb-miss" onclick="hbShowMissing()">⚠ ${hbMissing().length} tickers have no data</button>` : '') + `<span id="hb-status">${hbMsg}</span>`;
 
   const rows = hbGroups().map(g => {
-    const vals = g.syms.map(s => ({ s, v: hbRet(s) })).filter(x => x.v != null && isFinite(x.v));
+    const vals = g.syms.filter(hbCapOK).map(s => ({ s, v: hbRet(s) })).filter(x => x.v != null && isFinite(x.v));
     if (!vals.length) return null;
     return { ...g, vals, avg: vals.reduce((a, x) => a + x.v, 0) / vals.length };
-  }).filter(Boolean).sort((a, b) => b.avg - a.avg);
+  }).filter(Boolean).filter(r => !hbMin3 || r.vals.length >= 3).sort((a, b) => b.avg - a.avg);
 
   if (!rows.length) {
     box.innerHTML = `<div class="empty"><div class="ei">📡</div><div>${hbLoading ? 'Loading history…' : 'Waiting for price data to sync…'}</div></div>`;
